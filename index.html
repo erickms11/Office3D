@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Office 3D - Protótipo Interativo Three.js</title>
+    <meta name="description" content="Protótipo 3D interativo de movimentação em terceira pessoa com colisão e iluminação dinâmica feito em Three.js e Vite." />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://unpkg.com/three@0.168.0/build/three.module.js",
+          "three/addons/": "https://unpkg.com/three@0.168.0/examples/jsm/",
+          "three/examples/jsm/": "https://unpkg.com/three@0.168.0/examples/jsm/",
+          "three/examples/jsm/controls/OrbitControls.js": "https://unpkg.com/three@0.168.0/examples/jsm/controls/OrbitControls.js"
+        }
+      }
+    </script>
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <div id="canvas-container"></div>
+
+    <!-- UI Overlay com Glassmorphism -->
+    <main id="hud-overlay">
+      <header class="hud-header glass-panel">
+        <div class="logo-group">
+          <div class="status-indicator live"></div>
+          <h1>Office <span>3D</span></h1>
+          <span class="version-tag">Protótipo v1.0</span>
+        </div>
+        <p class="subtitle">Sala 3D com Three.js • Câmera 3ª Pessoa • Colisão</p>
+      </header>
+
+      <!-- Painel de Controles e Telemetria -->
+      <aside class="hud-controls-panel glass-panel">
+        <h2 class="panel-title">Controles (WASD)</h2>
+        <div class="keyboard-layout">
+          <div class="key-row">
+            <div class="key" id="key-w"><span>W</span></div>
+          </div>
+          <div class="key-row">
+            <div class="key" id="key-a"><span>A</span></div>
+            <div class="key" id="key-s"><span>S</span></div>
+            <div class="key" id="key-d"><span>D</span></div>
+          </div>
+        </div>
+        <p class="keys-legend">Use <strong>W, A, S, D</strong> ou <strong>Setas</strong> para andar</p>
+
+        <div class="divider"></div>
+
+        <div class="stats-group">
+          <div class="stat-item">
+            <span class="stat-label">Luz do Ambiente:</span>
+            <span class="stat-value badge-light-on" id="stat-light">Acesa 💡</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-label">Posição X:</span>
+            <span class="stat-value font-mono" id="stat-x">0.00</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-label">Posição Z:</span>
+            <span class="stat-value font-mono" id="stat-z">0.00</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-label">Velocidade:</span>
+            <span class="stat-value font-mono" id="stat-speed">0.0 m/s</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-label">Status de Colisão:</span>
+            <span class="stat-value badge-safe" id="stat-collision">Espaço Livre</span>
+          </div>
+        </div>
+
+        <div class="action-buttons">
+          <button id="btn-toggle-light" class="btn-action">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
+            </svg>
+            Interruptor (E)
+          </button>
+          <button id="btn-reset" class="btn-action">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+              <path d="M3 3v5h5"/>
+            </svg>
+            Resetar Posição
+          </button>
+          <button id="btn-camera" class="btn-action">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/>
+              <circle cx="12" cy="13" r="3"/>
+            </svg>
+            Alternar Ângulo
+          </button>
+        </div>
+      </aside>
+
+      <!-- Prompt de Interação Próximo ao Interruptor -->
+      <div id="interaction-prompt" class="interaction-prompt glass-panel hidden">
+        <span class="kbd-badge">E</span>
+        <span id="prompt-text">Apagar Luz do Ambiente</span>
+      </div>
+
+      <!-- Dica inferior -->
+      <footer class="hud-footer glass-panel">
+        <span>Arraste para girar a câmera • Aproxime-se do interruptor na parede norte para interagir (E)</span>
+      </footer>
+    </main>
+
+    <script type="module" src="./main.js"></script>
+  </body>
+</html>
