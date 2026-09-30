@@ -288,6 +288,17 @@ body, html {
   margin-top: 6px;
 }
 
+.zoom-buttons-row {
+  display: flex;
+  gap: 8px;
+}
+
+.btn-zoom {
+  flex: 1;
+  padding: 8px 10px;
+  font-size: 0.75rem;
+}
+
 .btn-action {
   pointer-events: auto;
   display: flex;

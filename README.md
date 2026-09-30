@@ -116,3 +116,26 @@ Abaixo está o plano arquitetônico e visual para a expansão do cenário em est
 - Paredes completas delimitando cada quarto, com suporte total ao disparo de portais azul e laranja em qualquer cômodo.
 - Atirar um portal no **Quarto 101** e outro no **Quarto 104** permite teletransportar instantaneamente de uma ponta do hotel para a outra!
 
+---
+
+## 🚪 Planejamento de Portas Interativas, 6 Salas e Zoom da Câmera (Fase 4)
+
+### 1. 🚪 Portas 3D Interativas com Animação de Dobradiça
+- **Painéis de Porta 3D**: Cada portal de quarto possui um painel de porta 3D interativo com dobradiça pivô e maçaneta metálica.
+- **Abertura/Fechamento**:
+  - Pressionar `E` ao lado da porta (ou aproximação) aciona a rotação suave da porta em 90°.
+  - Efeito sonoro sintetizado de porta abrindo/fechando.
+
+### 2. 🏨 Hotel Expandido com 6 Salas de Tamanhos Variados
+- **Quarto 101 - Suíte Presidencial (Grande - 18m x 14m)**: Cama King 3D, painel de TV, mesa de trabalho e iluminação nobre.
+- **Quarto 102 - Banheiro de Luxo (Pequeno - 8m x 6m)**: Espelho, pia de mármore, banheira 3D e azulejos claros.
+- **Quarto 103 - Tech Lab / Cyberpunk (Médio - 14m x 10m)**: Servidores, pedestais e luzes neon ciano.
+- **Quarto 104 - Suíte Botânica (Médio - 12m x 12m)**: Plantas ornamentais 3D e piso de madeira.
+- **Quarto 105 - Lavabo de Serviço (Muito Pequeno - 6m x 6m)**: Banheiro compacto com espelho e piso cerâmico.
+- **Quarto 106 - Câmara de Testes Aperture (Grande - 16m x 14m)**: Alvos de portal e caixas companion.
+
+### 3. 🔍 Zoom Ajustável da Câmera (Mouse Scroll & HUD)
+- **Scroll do Mouse**: Rolar a roda do mouse ajusta suavemente o zoom da câmera em 3ª pessoa (`cameraDistance` de `3.5m` a `18.0m`, padrão ajustado para `9.5m`).
+- **Controle pelo HUD**: Botões `Zoom +` e `Zoom -` no painel lateral para ajustar a distância visual desejada sem ficar muito perto do personagem.
+
+

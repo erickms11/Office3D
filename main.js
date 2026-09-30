@@ -250,115 +250,119 @@ function createWoodParquetTexture() {
 
 function createMarbleTexture() {
   const canvas = document.createElement('canvas');
-  canvas.width = 512;
-  canvas.height = 512;
+  canvas.width = 512; canvas.height = 512;
   const ctx = canvas.getContext('2d');
-  ctx.fillStyle = '#09090b';
-  ctx.fillRect(0, 0, 512, 512);
-  ctx.strokeStyle = 'rgba(217, 119, 6, 0.25)';
-  ctx.lineWidth = 3;
-  ctx.beginPath();
-  ctx.moveTo(0, 120); ctx.bezierCurveTo(140, 200, 280, 50, 512, 380); ctx.stroke();
-  ctx.strokeStyle = 'rgba(255, 255, 255, 0.12)';
-  ctx.lineWidth = 2;
-  ctx.strokeRect(4, 4, 504, 504);
+  ctx.fillStyle = '#09090b'; ctx.fillRect(0, 0, 512, 512);
+  ctx.strokeStyle = 'rgba(217, 119, 6, 0.25)'; ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.moveTo(0, 120); ctx.bezierCurveTo(140, 200, 280, 50, 512, 380); ctx.stroke();
   const texture = new THREE.CanvasTexture(canvas);
-  texture.wrapS = THREE.RepeatWrapping;
-  texture.wrapT = THREE.RepeatWrapping;
-  texture.repeat.set(4, 5);
+  texture.wrapS = THREE.RepeatWrapping; texture.wrapT = THREE.RepeatWrapping; texture.repeat.set(4, 5);
   return texture;
 }
 
 function createWhiteLabTileTexture() {
   const canvas = document.createElement('canvas');
-  canvas.width = 512;
-  canvas.height = 512;
+  canvas.width = 512; canvas.height = 512;
   const ctx = canvas.getContext('2d');
-  ctx.fillStyle = '#f8fafc';
-  ctx.fillRect(0, 0, 512, 512);
-  ctx.strokeStyle = 'rgba(148, 163, 184, 0.35)';
-  ctx.lineWidth = 4;
+  ctx.fillStyle = '#f8fafc'; ctx.fillRect(0, 0, 512, 512);
+  ctx.strokeStyle = 'rgba(148, 163, 184, 0.35)'; ctx.lineWidth = 4;
   for (let i = 128; i < 512; i += 128) {
     ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, 512); ctx.stroke();
     ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(512, i); ctx.stroke();
   }
   const texture = new THREE.CanvasTexture(canvas);
-  texture.wrapS = THREE.RepeatWrapping;
-  texture.wrapT = THREE.RepeatWrapping;
-  texture.repeat.set(4, 5);
+  texture.wrapS = THREE.RepeatWrapping; texture.wrapT = THREE.RepeatWrapping; texture.repeat.set(4, 5);
+  return texture;
+}
+
+function createBathroomTileTexture() {
+  const canvas = document.createElement('canvas');
+  canvas.width = 512; canvas.height = 512;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#0f172a'; ctx.fillRect(0, 0, 512, 512);
+  ctx.strokeStyle = 'rgba(56, 189, 248, 0.4)'; ctx.lineWidth = 3;
+  for (let i = 64; i < 512; i += 64) {
+    ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, 512); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(512, i); ctx.stroke();
+  }
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.wrapS = THREE.RepeatWrapping; texture.wrapT = THREE.RepeatWrapping; texture.repeat.set(2, 2);
   return texture;
 }
 
 function createCorridorCarpetTexture() {
   const canvas = document.createElement('canvas');
-  canvas.width = 512;
-  canvas.height = 512;
+  canvas.width = 512; canvas.height = 512;
   const ctx = canvas.getContext('2d');
-  ctx.fillStyle = '#020617';
-  ctx.fillRect(0, 0, 512, 512);
-  // Faixa central ciano no corredor
-  ctx.fillStyle = 'rgba(56, 189, 248, 0.4)';
-  ctx.fillRect(236, 0, 40, 512);
-  ctx.strokeStyle = 'rgba(56, 189, 248, 0.15)';
-  ctx.lineWidth = 2;
-  for (let y = 64; y < 512; y += 64) {
-    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(512, y); ctx.stroke();
-  }
+  ctx.fillStyle = '#020617'; ctx.fillRect(0, 0, 512, 512);
+  ctx.fillStyle = 'rgba(56, 189, 248, 0.4)'; ctx.fillRect(236, 0, 40, 512);
   const texture = new THREE.CanvasTexture(canvas);
-  texture.wrapS = THREE.RepeatWrapping;
-  texture.wrapT = THREE.RepeatWrapping;
-  texture.repeat.set(8, 2);
+  texture.wrapS = THREE.RepeatWrapping; texture.wrapT = THREE.RepeatWrapping; texture.repeat.set(12, 2);
   return texture;
 }
 
-// 2. CONSTRUÇÃO DOS PISOS DOS QUARTOS E DO CORREDOR
+// 2. CONSTRUÇÃO DOS PISOS DAS 6 SALAS DO HOTEL
 const floorGroup = new THREE.Group();
 
-// Corredor Central (X: -20 a 20, Z: -3.6 a 3.6)
-const corridorMat = new THREE.MeshStandardMaterial({ map: createCorridorCarpetTexture(), roughness: 0.6, metalness: 0.2 });
-const corridorFloor = new THREE.Mesh(new THREE.BoxGeometry(40, 0.4, 7.2), corridorMat);
+// Corredor Central (X: -30 a 30, Z: -3.6 a 3.6)
+const corridorMat = new THREE.MeshStandardMaterial({ map: createCorridorCarpetTexture(), roughness: 0.6 });
+const corridorFloor = new THREE.Mesh(new THREE.BoxGeometry(60, 0.4, 7.2), corridorMat);
 corridorFloor.position.set(0, -0.2, 0);
 corridorFloor.receiveShadow = true;
 floorGroup.add(corridorFloor);
 
-// Quarto 101: Tech Lab / Cyberpunk (Noroeste)
-const q101Mat = new THREE.MeshStandardMaterial({ map: createGridTexture(), roughness: 0.5, metalness: 0.3 });
-const q101Floor = new THREE.Mesh(new THREE.BoxGeometry(16.4, 0.4, 20.4), q101Mat);
-q101Floor.position.set(-11.8, -0.2, -13.8);
+// Quarto 101: Suíte Presidencial (Grande - Noroeste)
+const q101Mat = new THREE.MeshStandardMaterial({ map: createMarbleTexture(), roughness: 0.3 });
+const q101Floor = new THREE.Mesh(new THREE.BoxGeometry(17.6, 0.4, 20.4), q101Mat);
+q101Floor.position.set(-19.0, -0.2, -13.8);
 q101Floor.receiveShadow = true;
 floorGroup.add(q101Floor);
 
-// Quarto 102: Bioma Botânico (Sudoeste)
-const q102Mat = new THREE.MeshStandardMaterial({ map: createWoodParquetTexture(), roughness: 0.7, metalness: 0.1 });
-const q102Floor = new THREE.Mesh(new THREE.BoxGeometry(16.4, 0.4, 20.4), q102Mat);
-q102Floor.position.set(-11.8, -0.2, 13.8);
+// Quarto 102: Banheiro de Luxo (Pequeno - Norte Centro)
+const q102Mat = new THREE.MeshStandardMaterial({ map: createBathroomTileTexture(), roughness: 0.2 });
+const q102Floor = new THREE.Mesh(new THREE.BoxGeometry(7.6, 0.4, 10.4), q102Mat);
+q102Floor.position.set(-6.0, -0.2, -8.8);
 q102Floor.receiveShadow = true;
 floorGroup.add(q102Floor);
 
-// Quarto 103: Lounge VIP Executivo (Nordeste)
-const q103Mat = new THREE.MeshStandardMaterial({ map: createMarbleTexture(), roughness: 0.25, metalness: 0.4 });
-const q103Floor = new THREE.Mesh(new THREE.BoxGeometry(16.4, 0.4, 20.4), q103Mat);
-q103Floor.position.set(11.8, -0.2, -13.8);
+// Quarto 103: Tech Lab / Cyberpunk (Médio - Nordeste)
+const q103Mat = new THREE.MeshStandardMaterial({ map: createGridTexture(), roughness: 0.5 });
+const q103Floor = new THREE.Mesh(new THREE.BoxGeometry(13.6, 0.4, 16.4), q103Mat);
+q103Floor.position.set(9.0, -0.2, -11.8);
 q103Floor.receiveShadow = true;
 floorGroup.add(q103Floor);
 
-// Quarto 104: Câmara Quântica / Aperture Test (Sudeste)
-const q104Mat = new THREE.MeshStandardMaterial({ map: createWhiteLabTileTexture(), roughness: 0.3, metalness: 0.2 });
-const q104Floor = new THREE.Mesh(new THREE.BoxGeometry(16.4, 0.4, 20.4), q104Mat);
-q104Floor.position.set(11.8, -0.2, 13.8);
+// Quarto 104: Suíte Botânica / Jardim (Médio - Sudoeste)
+const q104Mat = new THREE.MeshStandardMaterial({ map: createWoodParquetTexture(), roughness: 0.7 });
+const q104Floor = new THREE.Mesh(new THREE.BoxGeometry(13.6, 0.4, 16.4), q104Mat);
+q104Floor.position.set(-21.0, -0.2, 11.8);
 q104Floor.receiveShadow = true;
 floorGroup.add(q104Floor);
 
+// Quarto 105: Lavabo / Banheiro de Serviço (Muito Pequeno - Sul Centro)
+const q105Mat = new THREE.MeshStandardMaterial({ map: createBathroomTileTexture(), roughness: 0.3 });
+const q105Floor = new THREE.Mesh(new THREE.BoxGeometry(5.6, 0.4, 8.4), q105Mat);
+q105Floor.position.set(-11.0, -0.2, 7.8);
+q105Floor.receiveShadow = true;
+floorGroup.add(q105Floor);
+
+// Quarto 106: Câmara Quântica / Aperture Test Lab (Grande - Sudeste)
+const q106Mat = new THREE.MeshStandardMaterial({ map: createWhiteLabTileTexture(), roughness: 0.3 });
+const q106Floor = new THREE.Mesh(new THREE.BoxGeometry(21.6, 0.4, 18.4), q106Mat);
+q106Floor.position.set(13.0, -0.2, 12.8);
+q106Floor.receiveShadow = true;
+floorGroup.add(q106Floor);
+
 scene.add(floorGroup);
 
-// GridHelper decorativo no corredor
-const gridHelper = new THREE.GridHelper(40, 20, 0x38bdf8, 0x1e293b);
+// GridHelper no corredor
+const gridHelper = new THREE.GridHelper(60, 30, 0x38bdf8, 0x1e293b);
 gridHelper.position.set(0, 0.005, 0);
 scene.add(gridHelper);
 
-// 3. CONSTRUÇÃO DAS PAREDES E COLISORES AABB DO COMPLEXO
+// 3. PAREDES E COLISORES DO HOTEL COM 6 SALAS
 const wallMaterial = new THREE.MeshStandardMaterial({ color: 0x1e2638, roughness: 0.85, metalness: 0.1 });
-const trimMaterial = new THREE.MeshStandardMaterial({ color: 0x38bdf8, emissive: 0x0284c7, emissiveIntensity: 0.4, roughness: 0.3, metalness: 0.5 });
+const trimMaterial = new THREE.MeshStandardMaterial({ color: 0x38bdf8, emissive: 0x0284c7, emissiveIntensity: 0.4 });
 
 const wallsGroup = new THREE.Group();
 const portalWallMeshes = [];
@@ -367,19 +371,16 @@ const wallColliders = [];
 function createWallSegment(w, h, d, x, y, z, wallName) {
   const wallMesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), wallMaterial);
   wallMesh.position.set(x, y, z);
-  wallMesh.castShadow = true;
-  wallMesh.receiveShadow = true;
+  wallMesh.castShadow = true; wallMesh.receiveShadow = true;
   wallMesh.userData = { isPortalWall: true, wallName: wallName || 'Parede' };
   wallsGroup.add(wallMesh);
   portalWallMeshes.push(wallMesh);
 
-  // Rodapé decorativo
   const trimHeight = 0.15;
   const trim = new THREE.Mesh(new THREE.BoxGeometry(w === WALL_THICKNESS ? w + 0.04 : w, trimHeight, d === WALL_THICKNESS ? d + 0.04 : d), trimMaterial);
   trim.position.set(x, trimHeight / 2, z);
   wallsGroup.add(trim);
 
-  // Adiciona ao sistema de colisão física AABB
   wallColliders.push({
     minX: x - w / 2 - PLAYER_RADIUS,
     maxX: x + w / 2 + PLAYER_RADIUS,
@@ -389,59 +390,127 @@ function createWallSegment(w, h, d, x, y, z, wallName) {
   });
 }
 
-// Paredes Perimetrais Externas do Hotel
-createWallSegment(40.6, WALL_HEIGHT, WALL_THICKNESS, 0, WALL_HEIGHT / 2, -24.0, 'Parede Norte Q101/Q103');
-createWallSegment(40.6, WALL_HEIGHT, WALL_THICKNESS, 0, WALL_HEIGHT / 2, 24.0, 'Parede Sul Q102/Q104');
-createWallSegment(WALL_THICKNESS, WALL_HEIGHT, 48.6, -20.0, WALL_HEIGHT / 2, 0, 'Parede Oeste Q101/Q102');
-createWallSegment(WALL_THICKNESS, WALL_HEIGHT, 48.6, 20.0, WALL_HEIGHT / 2, 0, 'Parede Leste Q103/Q104');
+// Paredes Perimetrais Externas
+createWallSegment(60.6, WALL_HEIGHT, WALL_THICKNESS, 0, WALL_HEIGHT / 2, -24.0, 'Parede Norte Hotel');
+createWallSegment(60.6, WALL_HEIGHT, WALL_THICKNESS, 0, WALL_HEIGHT / 2, 24.0, 'Parede Sul Hotel');
+createWallSegment(WALL_THICKNESS, WALL_HEIGHT, 48.6, -30.0, WALL_HEIGHT / 2, 0, 'Parede Oeste Hotel');
+createWallSegment(WALL_THICKNESS, WALL_HEIGHT, 48.6, 30.0, WALL_HEIGHT / 2, 0, 'Parede Leste Hotel');
 
-// Paredes Divisórias Internas do Corredor (com Vãos das 4 Portas)
-// Parede Oeste do Corredor (X = -3.6) com portas em Z = -12 e Z = 12
-createWallSegment(WALL_THICKNESS, WALL_HEIGHT, 10.4, -3.6, WALL_HEIGHT / 2, -18.8, 'Parede Q101 Norte');
-createWallSegment(WALL_THICKNESS, WALL_HEIGHT, 13.6, -3.6, WALL_HEIGHT / 2, 0, 'Parede Corredor Oeste Centro');
-createWallSegment(WALL_THICKNESS, WALL_HEIGHT, 10.4, -3.6, WALL_HEIGHT / 2, 18.8, 'Parede Q102 Sul');
+// Divisórias das 6 Salas & Corredor
+// Parede Oeste do Corredor (Z = -3.6 / Z = 3.6)
+createWallSegment(18.0, WALL_HEIGHT, WALL_THICKNESS, -19.0, WALL_HEIGHT / 2, -3.6, 'Parede Q101/Corredor');
+createWallSegment(8.0, WALL_HEIGHT, WALL_THICKNESS, -6.0, WALL_HEIGHT / 2, -3.6, 'Parede Q102/Corredor');
+createWallSegment(14.0, WALL_HEIGHT, WALL_THICKNESS, 9.0, WALL_HEIGHT / 2, -3.6, 'Parede Q103/Corredor');
 
-// Parede Leste do Corredor (X = 3.6) com portas em Z = -12 e Z = 12
-createWallSegment(WALL_THICKNESS, WALL_HEIGHT, 10.4, 3.6, WALL_HEIGHT / 2, -18.8, 'Parede Q103 Norte');
-createWallSegment(WALL_THICKNESS, WALL_HEIGHT, 13.6, 3.6, WALL_HEIGHT / 2, 0, 'Parede Corredor Leste Centro');
-createWallSegment(WALL_THICKNESS, WALL_HEIGHT, 10.4, 3.6, WALL_HEIGHT / 2, 18.8, 'Parede Q104 Sul');
+createWallSegment(14.0, WALL_HEIGHT, WALL_THICKNESS, -21.0, WALL_HEIGHT / 2, 3.6, 'Parede Q104/Corredor');
+createWallSegment(6.0, WALL_HEIGHT, WALL_THICKNESS, -11.0, WALL_HEIGHT / 2, 3.6, 'Parede Q105/Corredor');
+createWallSegment(22.0, WALL_HEIGHT, WALL_THICKNESS, 13.0, WALL_HEIGHT / 2, 3.6, 'Parede Q106/Corredor');
 
-// Divisórias Horizontais dos Quartos (Z = -3.6 e Z = 3.6)
-createWallSegment(15.8, WALL_HEIGHT, WALL_THICKNESS, -11.8, WALL_HEIGHT / 2, -3.6, 'Parede Divisória Q101/Corredor');
-createWallSegment(15.8, WALL_HEIGHT, WALL_THICKNESS, -11.8, WALL_HEIGHT / 2, 3.6, 'Parede Divisória Q102/Corredor');
-createWallSegment(15.8, WALL_HEIGHT, WALL_THICKNESS, 11.8, WALL_HEIGHT / 2, -3.6, 'Parede Divisória Q103/Corredor');
-createWallSegment(15.8, WALL_HEIGHT, WALL_THICKNESS, 11.8, WALL_HEIGHT / 2, 3.6, 'Parede Divisória Q104/Corredor');
+// Divisórias Verticais entre Quartos
+createWallSegment(WALL_THICKNESS, WALL_HEIGHT, 20.4, -10.2, WALL_HEIGHT / 2, -13.8, 'Divisória Q101/Q102');
+createWallSegment(WALL_THICKNESS, WALL_HEIGHT, 16.4, 2.0, WALL_HEIGHT / 2, -11.8, 'Divisória Q102/Q103');
+createWallSegment(WALL_THICKNESS, WALL_HEIGHT, 16.4, -14.0, WALL_HEIGHT / 2, 11.8, 'Divisória Q104/Q105');
+createWallSegment(WALL_THICKNESS, WALL_HEIGHT, 18.4, 2.0, WALL_HEIGHT / 2, 12.8, 'Divisória Q105/Q106');
 
 scene.add(wallsGroup);
 
-// 4. PORTAIS EM ARCO E PLACAS INDICATIVAS DE QUARTO
-function createDoorFrame(x, z, roomNumber, roomTitle, isWest) {
-  const frameGroup = new THREE.Group();
-  frameGroup.position.set(x, 0, z);
+// 4. SISTEMA DE PORTAS 3D INTERATIVAS COM DOBRADIÇA
+const interactiveDoors = [];
 
-  // Viga de topo sobre o vão da porta
-  const lintelMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.3, metalness: 0.8 });
-  const lintel = new THREE.Mesh(new THREE.BoxGeometry(0.8, 1.2, 3.4), lintelMat);
-  lintel.position.set(0, 4.2, 0);
-  frameGroup.add(lintel);
-
-  // Placa Luminosa Neon com Número do Quarto
-  const signMat = new THREE.MeshStandardMaterial({ color: 0x38bdf8, emissive: 0x0284c7, emissiveIntensity: 1.8 });
-  const sign = new THREE.Mesh(new THREE.BoxGeometry(0.86, 0.45, 1.6), signMat);
-  sign.position.set(0, 3.4, 0);
-  frameGroup.add(sign);
-
-  const signLight = new THREE.PointLight(0x38bdf8, 1.2, 4);
-  signLight.position.set(isWest ? 0.6 : -0.6, 3.4, 0);
-  frameGroup.add(signLight);
-
-  scene.add(frameGroup);
+function playDoorSound(isOpen) {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const now = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(isOpen ? 220 : 440, now);
+    osc.frequency.exponentialRampToValueAtTime(isOpen ? 440 : 180, now + 0.2);
+    gain.gain.setValueAtTime(0.2, now);
+    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.22);
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.start(now); osc.stop(now + 0.23);
+  } catch (e) {}
 }
 
-createDoorFrame(-3.6, -12.0, '101', 'TECH LAB', true);
-createDoorFrame(-3.6, 12.0, '102', 'BOTÂNICO', true);
-createDoorFrame(3.6, -12.0, '103', 'LOUNGE VIP', false);
-createDoorFrame(3.6, 12.0, '104', 'CÂMARA TESTES', false);
+function createInteractiveDoor(x, z, roomNumber, roomTitle, isNorthSide) {
+  const doorGroup = new THREE.Group();
+  doorGroup.position.set(x, 0, z);
+
+  // Viga Lintel
+  const lintelMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.3 });
+  const lintel = new THREE.Mesh(new THREE.BoxGeometry(3.0, 1.0, 0.8), lintelMat);
+  lintel.position.set(0, 4.2, 0);
+  doorGroup.add(lintel);
+
+  // Placa de Número do Quarto
+  const signMat = new THREE.MeshStandardMaterial({ color: 0x38bdf8, emissive: 0x0284c7, emissiveIntensity: 1.8 });
+  const sign = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.45, 0.86), signMat);
+  sign.position.set(0, 3.4, 0);
+  doorGroup.add(sign);
+
+  // Pivô da Dobradiça da Porta 3D
+  const pivotGroup = new THREE.Group();
+  pivotGroup.position.set(-1.4, 0, 0);
+
+  const doorMat = new THREE.MeshStandardMaterial({ color: 0x78350f, roughness: 0.5 });
+  const doorPanel = new THREE.Mesh(new THREE.BoxGeometry(2.7, 3.2, 0.12), doorMat);
+  doorPanel.position.set(1.35, 1.6, 0);
+  doorPanel.castShadow = true; doorPanel.receiveShadow = true;
+  pivotGroup.add(doorPanel);
+
+  // Maçaneta Dourada
+  const knobMat = new THREE.MeshStandardMaterial({ color: 0xfacc15, metalness: 0.9 });
+  const knob = new THREE.Mesh(new THREE.SphereGeometry(0.08, 12, 12), knobMat);
+  knob.position.set(2.4, 1.5, 0.12);
+  pivotGroup.add(knob);
+
+  doorGroup.add(pivotGroup);
+  scene.add(doorGroup);
+
+  const doorData = {
+    group: doorGroup,
+    pivot: pivotGroup,
+    isOpen: false,
+    currentAngle: 0,
+    targetAngle: 0,
+    x, z,
+    roomNumber,
+    name: roomTitle,
+    colliderIndex: -1,
+  };
+
+  // Registra colisor de porta fechada
+  const collider = {
+    minX: x - 1.4 - PLAYER_RADIUS,
+    maxX: x + 1.4 + PLAYER_RADIUS,
+    minZ: z - 0.4 - PLAYER_RADIUS,
+    maxZ: z + 0.4 + PLAYER_RADIUS,
+    name: `Porta ${roomNumber} (${roomTitle})`,
+  };
+  wallColliders.push(collider);
+  doorData.colliderIndex = wallColliders.length - 1;
+
+  interactiveDoors.push(doorData);
+  return doorData;
+}
+
+function toggleDoor(door) {
+  door.isOpen = !door.isOpen;
+  door.targetAngle = door.isOpen ? -Math.PI / 2 : 0;
+  if (door.colliderIndex >= 0 && wallColliders[door.colliderIndex]) {
+    wallColliders[door.colliderIndex].disabled = door.isOpen;
+  }
+  playDoorSound(door.isOpen);
+}
+
+// Criação das Portas 3D das 6 Salas
+createInteractiveDoor(-19.0, -3.6, '101', 'SUÍTE PRESIDENCIAL', true);
+createInteractiveDoor(-6.0, -3.6, '102', 'BANHEIRO LUXO', true);
+createInteractiveDoor(9.0, -3.6, '103', 'TECH LAB', true);
+createInteractiveDoor(-21.0, 3.6, '104', 'SUÍTE BOTÂNICA', false);
+createInteractiveDoor(-11.0, 3.6, '105', 'LAVABO', false);
+createInteractiveDoor(13.0, 3.6, '106', 'CÂMARA TESTES', false);
 
 // --- EFEITOS SONOROS SINTETIZADOS DA FASE 2 ---
 function playEquipGunSound() {
@@ -832,6 +901,13 @@ window.addEventListener('keydown', (e) => {
     e.preventDefault();
   }
   if (key === 'e') {
+    for (const door of interactiveDoors) {
+      const dist = playerGroup.position.distanceTo(new THREE.Vector3(door.x, 1.0, door.z));
+      if (dist < 2.5) {
+        toggleDoor(door);
+        return;
+      }
+    }
     const distPedestal = playerGroup.position.distanceTo(PEDESTAL_POS);
     if (!hasPortalGun && distPedestal < 2.5) {
       pickUpPortalGun();
@@ -1430,7 +1506,27 @@ let hasDragged = false;
 
 let cameraYaw = 0;
 let cameraPitch = 0.35;
-let cameraDistance = 7.0;
+let cameraDistance = 9.5;
+
+function updateZoom(deltaZoom) {
+  cameraDistance = THREE.MathUtils.clamp(cameraDistance + deltaZoom, 3.5, 22.0);
+  const statZoom = document.getElementById('stat-zoom');
+  if (statZoom) {
+    statZoom.textContent = `${cameraDistance.toFixed(1)}m`;
+  }
+}
+
+window.addEventListener('wheel', (e) => {
+  if (e.target && e.target.closest && e.target.closest('#hud-overlay')) return;
+  e.preventDefault();
+  const zoomStep = e.deltaY > 0 ? 0.9 : -0.9;
+  updateZoom(zoomStep);
+}, { passive: false });
+
+const btnZoomIn = document.getElementById('btn-zoom-in');
+const btnZoomOut = document.getElementById('btn-zoom-out');
+if (btnZoomIn) btnZoomIn.addEventListener('click', () => updateZoom(-1.8));
+if (btnZoomOut) btnZoomOut.addEventListener('click', () => updateZoom(1.8));
 
 // Previne menu de contexto padrão no clique do botão direito
 window.addEventListener('contextmenu', (e) => {
@@ -1575,6 +1671,7 @@ function checkAndResolveCollisions3D(newPos) {
 
   // 1. Colisão com todas as paredes do complexo (Paredes Externas e Divisórias dos Quartos)
   for (const wall of wallColliders) {
+    if (wall.disabled) continue;
     if (
       newPos.x > wall.minX &&
       newPos.x < wall.maxX &&
@@ -1841,11 +1938,22 @@ function animate() {
     let roomName = 'Corredor Central 🏨';
     const px = playerGroup.position.x;
     const pz = playerGroup.position.z;
-    if (px < -3.6 && pz < -3.6) roomName = 'Q.101 (Tech Lab) 💻';
-    else if (px < -3.6 && pz > 3.6) roomName = 'Q.102 (Botânico) 🌿';
-    else if (px > 3.6 && pz < -3.6) roomName = 'Q.103 (Lounge VIP) 🍸';
-    else if (px > 3.6 && pz > 3.6) roomName = 'Q.104 (Câmara Testes) 🧪';
+    if (pz < -3.6) {
+      if (px < -10.2) roomName = 'Q.101 (Suíte Presidencial) 👑';
+      else if (px < 2.0) roomName = 'Q.102 (Banheiro Luxo) 🛁';
+      else roomName = 'Q.103 (Tech Lab) 💻';
+    } else if (pz > 3.6) {
+      if (px < -14.0) roomName = 'Q.104 (Suíte Botânica) 🌿';
+      else if (px < 2.0) roomName = 'Q.105 (Lavabo Serviço) 🚿';
+      else roomName = 'Q.106 (Câmara Testes) 🧪';
+    }
     statRoom.textContent = roomName;
+  }
+
+  // Animação suave de abertura/fechamento das portas 3D
+  for (const door of interactiveDoors) {
+    door.currentAngle = THREE.MathUtils.lerp(door.currentAngle, door.targetAngle, delta * 7.0);
+    door.pivot.rotation.y = door.currentAngle;
   }
 
   const currentSpeed = Math.sqrt(velocity.x * velocity.x + velocity.z * velocity.z);
@@ -1881,11 +1989,24 @@ function animate() {
   holoGroup.rotation.z += delta * 1.5;
   holoGroup.position.y = 0.52 + Math.sin(clock.getElapsedTime() * 3.0) * 0.03;
 
-  // Verificação de proximidade do interruptor e do pedestal
+  // Verificação de proximidade do interruptor, pedestal e portas
   const distToSwitch = playerGroup.position.distanceTo(SWITCH_POS);
   const distToPedestal = playerGroup.position.distanceTo(PEDESTAL_POS);
 
-  if (!hasPortalGun && distToPedestal < 2.5) {
+  let nearDoor = null;
+  for (const door of interactiveDoors) {
+    const dist = playerGroup.position.distanceTo(new THREE.Vector3(door.x, 1.0, door.z));
+    if (dist < 2.5) {
+      nearDoor = door;
+      break;
+    }
+  }
+
+  if (nearDoor) {
+    if (interactionPrompt) interactionPrompt.classList.remove('hidden');
+    if (promptKey) promptKey.textContent = 'E';
+    if (promptText) promptText.textContent = nearDoor.isOpen ? `Fechar Porta ${nearDoor.roomNumber} (${nearDoor.name}) (E)` : `Abrir Porta ${nearDoor.roomNumber} (${nearDoor.name}) (E)`;
+  } else if (!hasPortalGun && distToPedestal < 2.5) {
     if (interactionPrompt) interactionPrompt.classList.remove('hidden');
     if (promptKey) promptKey.textContent = 'E';
     if (promptText) promptText.textContent = 'Coletar Arma de Portais (E)';

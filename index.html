@@ -29,9 +29,9 @@
         <div class="logo-group">
           <div class="status-indicator live"></div>
           <h1>Hotel <span>3D</span></h1>
-          <span class="version-tag">Fase 3 • 4 Quartos & Corredor</span>
+          <span class="version-tag">Fase 4 • Portas & 6 Salas</span>
         </div>
-        <p class="subtitle">Complexo 4 Quartos Temáticos • Corredor • Portais Bidirecionais</p>
+        <p class="subtitle">Hotel 6 Salas de Tamanhos Variados • Portas 3D • Zoom Ajustável</p>
       </header>
 
       <!-- Painel de Controles e Telemetria -->
@@ -50,7 +50,7 @@
             <div class="key key-space" id="key-space"><span>Espaço (Pular)</span></div>
           </div>
         </div>
-        <p class="keys-legend">Use <strong>WASD / Setas</strong> para andar • <strong>Espaço</strong> para pular</p>
+        <p class="keys-legend">Use <strong>WASD / Setas</strong> para andar • <strong>Scroll</strong> para Zoom</p>
 
         <div class="divider"></div>
 
@@ -60,8 +60,12 @@
             <span class="stat-value badge-room" id="stat-room">Corredor Central 🏨</span>
           </div>
           <div class="stat-item">
+            <span class="stat-label">Zoom Câmera:</span>
+            <span class="stat-value font-mono" id="stat-zoom">9.5m</span>
+          </div>
+          <div class="stat-item">
             <span class="stat-label">Arma de Portais:</span>
-            <span class="stat-value badge-gun-unarmed" id="stat-gun">No Q.101 🔫</span>
+            <span class="stat-value badge-gun-unarmed" id="stat-gun">No Q.103 🔫</span>
           </div>
           <div class="stat-item">
             <span class="stat-label">Luz do Ambiente:</span>
@@ -82,6 +86,14 @@
         </div>
 
         <div class="action-buttons">
+          <div class="zoom-buttons-row">
+            <button id="btn-zoom-in" class="btn-action btn-zoom" title="Aproximar Câmera">
+              🔍 Zoom +
+            </button>
+            <button id="btn-zoom-out" class="btn-action btn-zoom" title="Afastar Câmera">
+              🔍 Zoom -
+            </button>
+          </div>
           <button id="btn-toggle-light" class="btn-action">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
