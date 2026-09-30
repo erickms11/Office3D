@@ -88,4 +88,31 @@ Abaixo está o plano detalhado para a implementação das novas mecânicas de ga
 - **Caixas/Plataformas Interativas**: Criação de caixas tecnológicas no ambiente (estilo *Companion Cube* ou caixas de carga) com diferentes alturas (ex: 1.0m e 2.0m).
 - **Sistema de Colisão 3D (AABB 3D)**:
   - Suporte a detecção de topo de superfícies (*stepping*).
-  - O jogador pode pular e pousar em cima das caixas, andar sobre o topo delas e cair naturalmente ao caminhar além das bordas superiores.
+  - O jogador pode pular e pousar em cima das caixas, andar sobre o topo delas e cair naturally ao caminhar além das bordas superiores.
+
+---
+
+## 🏨 Planejamento do Complexo de Quartos & Corredor (Fase 3)
+
+Abaixo está o plano arquitetônico e visual para a expansão do cenário em estilo Hotel/Complexo Tecnológico com 4 quartos temáticos interconectados:
+
+### 1. 🏬 Layout Arquitetônico (Corredor & 4 Quartos)
+- **Corredor Central (Hotel Hallway)**: Um corredor principal (`Comprimento: 36m, Largura: 4.8m`) com iluminação contínua de teto, piso decorado com faixas guia, placas numéricas (`Quarto 101`, `102`, `103`, `104`) e portais de entrada em arco para cada cômodo.
+- **Quarto 101 - Tech Lab / Cyberpunk (Canto Noroeste)**:
+  - Estilo: Tecnológico e cibernético.
+  - Elementos: Piso metálico escuro com linhas ciano, servidores em rack piscantes, painéis de LED e pedestal da arma de portais.
+- **Quarto 102 - Bioma Botânico / Natureza (Canto Sudoeste)**:
+  - Estilo: Orgânico e relaxante.
+  - Elementos: Piso em tom de madeira e vegetação, iluminação solar dourada, plantas 3D ornamentais e rochas decorativas.
+- **Quarto 103 - Lounge VIP Executivo (Canto Nordeste)**:
+  - Estilo: Sofisticado e luxuoso.
+  - Elementos: Piso estilizado em mármore escuro, sofá lounge 3D, quadros de arte moderna nas paredes e iluminação indireta quente.
+- **Quarto 104 - Câmara Quântica / Testes Portal (Canto Sudeste)**:
+  - Estilo: Laboratório de testes (*Aperture Science*).
+  - Elementos: Paredes brancas e pretas contrastantes, painéis luminosos hexagonais, alvos de portal e caixas de teste avançadas.
+
+### 2. 🚪 Passagens & Colisão Expandida (AABB 3D)
+- Todas as portas possuem passagens abertas permitindo caminhar do corredor para dentro de qualquer quarto.
+- Paredes completas delimitando cada quarto, com suporte total ao disparo de portais azul e laranja em qualquer cômodo.
+- Atirar um portal no **Quarto 101** e outro no **Quarto 104** permite teletransportar instantaneamente de uma ponta do hotel para a outra!
+
