@@ -175,6 +175,11 @@ body, html {
   gap: 6px;
 }
 
+.key-row.space-row {
+  width: 100%;
+  margin-top: 2px;
+}
+
 .key {
   width: 44px;
   height: 44px;
@@ -190,6 +195,12 @@ body, html {
   font-weight: 700;
   box-shadow: 0 4px 0 rgba(0, 0, 0, 0.4);
   transition: all 0.1s ease;
+}
+
+.key-space {
+  width: 100%;
+  height: 32px;
+  font-size: 0.75rem;
 }
 
 .key.active {
@@ -396,6 +407,254 @@ body, html {
   font-weight: 600;
   color: var(--text-main);
   letter-spacing: 0.02em;
+}
+
+/* --- MIRA CENTRAL (CROSSHAIR) ESTILO PORTAL GUN --- */
+#crosshair-container {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 56px;
+  height: 56px;
+  pointer-events: none;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.12s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+}
+
+#crosshair-center-dot {
+  width: 4px;
+  height: 4px;
+  background-color: #ffffff;
+  border-radius: 50%;
+  box-shadow: 0 0 6px rgba(255, 255, 255, 0.9), 0 0 12px rgba(255, 255, 255, 0.5);
+  z-index: 2;
+  transition: transform 0.1s ease;
+}
+
+.crosshair-bracket {
+  position: absolute;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Suporte Esquerdo (Portal Azul) */
+.left-bracket {
+  clip-path: polygon(0 0, 48% 0, 48% 100%, 0 100%);
+  border: 2px solid rgba(56, 189, 248, 0.3);
+}
+
+.left-bracket.active-portal-blue {
+  border-color: #00d2ff;
+  border-width: 3px;
+  box-shadow: 0 0 14px #00d2ff, inset 0 0 10px rgba(0, 210, 255, 0.6);
+  filter: drop-shadow(0 0 6px #00d2ff);
+  animation: portalBracketPulseBlue 2s infinite ease-in-out;
+}
+
+/* Suporte Direito (Portal Laranja) */
+.right-bracket {
+  clip-path: polygon(52% 0, 100% 0, 100% 100%, 52% 100%);
+  border: 2px solid rgba(249, 115, 22, 0.3);
+}
+
+.right-bracket.active-portal-orange {
+  border-color: #ff7b00;
+  border-width: 3px;
+  box-shadow: 0 0 14px #ff7b00, inset 0 0 10px rgba(255, 123, 0, 0.6);
+  filter: drop-shadow(0 0 6px #ff7b00);
+  animation: portalBracketPulseOrange 2s infinite ease-in-out;
+}
+
+@keyframes portalBracketPulseBlue {
+  0%, 100% { filter: drop-shadow(0 0 6px #00d2ff); }
+  50% { filter: drop-shadow(0 0 12px #38bdf8); }
+}
+
+@keyframes portalBracketPulseOrange {
+  0%, 100% { filter: drop-shadow(0 0 6px #ff7b00); }
+  50% { filter: drop-shadow(0 0 12px #fb923c); }
+}
+
+/* Recoil / Feedback de Tiro */
+#crosshair-container.recoil-blue {
+  transform: translate(-50%, -50%) scale(1.35);
+  filter: drop-shadow(0 0 12px #00d2ff);
+}
+
+#crosshair-container.recoil-orange {
+  transform: translate(-50%, -50%) scale(1.35);
+  filter: drop-shadow(0 0 12px #ff7b00);
+}
+
+/* --- SEÇÃO DA ARMA DE PORTAIS NO HUD --- */
+.portal-status-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.portal-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.panel-subtitle {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-main);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.badge-phase {
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 9999px;
+  background: rgba(129, 140, 248, 0.18);
+  color: #a5b4fc;
+  border: 1px solid rgba(129, 140, 248, 0.35);
+  letter-spacing: 0.04em;
+}
+
+.badge-portal-empty {
+  font-size: 0.7rem;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-muted);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  transition: all 0.25s ease;
+}
+
+.badge-portal-blue {
+  font-size: 0.7rem;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: rgba(0, 210, 255, 0.18);
+  color: #38bdf8;
+  border: 1px solid rgba(0, 210, 255, 0.45);
+  box-shadow: 0 0 10px rgba(0, 210, 255, 0.25);
+  font-weight: 600;
+  transition: all 0.25s ease;
+}
+
+.badge-portal-orange {
+  font-size: 0.7rem;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: rgba(255, 123, 0, 0.18);
+  color: #fb923c;
+  border: 1px solid rgba(255, 123, 0, 0.45);
+  box-shadow: 0 0 10px rgba(255, 123, 0, 0.25);
+  font-weight: 600;
+  transition: all 0.25s ease;
+}
+
+.portal-mouse-hints {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 10px;
+  background: rgba(0, 0, 0, 0.25);
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.mouse-hint-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.mouse-key-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 30px;
+  height: 20px;
+  padding: 0 5px;
+  border-radius: 4px;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.blue-key {
+  background: rgba(0, 210, 255, 0.2);
+  color: #38bdf8;
+  border: 1px solid rgba(0, 210, 255, 0.5);
+  box-shadow: 0 0 6px rgba(0, 210, 255, 0.3);
+}
+
+.orange-key {
+  background: rgba(255, 123, 0, 0.2);
+  color: #fb923c;
+  border: 1px solid rgba(255, 123, 0, 0.5);
+  box-shadow: 0 0 6px rgba(255, 123, 0, 0.3);
+}
+
+.btn-clear-portals {
+  margin-top: 2px;
+  font-size: 0.75rem;
+  padding: 7px 10px;
+  opacity: 0.85;
+}
+
+.btn-clear-portals:hover {
+  opacity: 1;
+  background: rgba(248, 113, 113, 0.15);
+  border-color: rgba(248, 113, 113, 0.4);
+  color: #fca5a5;
+}
+
+.badge-gun-unarmed {
+  font-size: 0.7rem;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: rgba(250, 204, 21, 0.15);
+  color: #facc15;
+  border: 1px solid rgba(250, 204, 21, 0.35);
+  box-shadow: 0 0 10px rgba(250, 204, 21, 0.2);
+  transition: all 0.3s ease;
+}
+
+.badge-gun-equipped {
+  font-size: 0.7rem;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: rgba(56, 189, 248, 0.2);
+  color: #38bdf8;
+  border: 1px solid rgba(56, 189, 248, 0.45);
+  box-shadow: 0 0 12px rgba(56, 189, 248, 0.3);
+  font-weight: 700;
+  transition: all 0.3s ease;
+}
+
+.badge-teleporting {
+  font-size: 0.7rem;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: rgba(168, 85, 247, 0.25);
+  color: #c084fc;
+  border: 1px solid rgba(168, 85, 247, 0.5);
+  box-shadow: 0 0 12px rgba(168, 85, 247, 0.4);
+  animation: alertPulse 0.3s infinite alternate;
+}
+
+#crosshair-container.unarmed {
+  opacity: 0.3;
+  filter: grayscale(80%);
 }
 
 @media (max-width: 768px) {
