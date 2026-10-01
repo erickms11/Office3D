@@ -3,8 +3,8 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Office 3D - Protótipo Interativo Three.js</title>
-    <meta name="description" content="Protótipo 3D interativo de movimentação em terceira pessoa com colisão e iluminação dinâmica feito em Three.js e Vite." />
+    <title>Hotel 3D - Protótipo Interativo Three.js</title>
+    <meta name="description" content="Protótipo 3D interativo de hotel com 6 salas, iluminação por ambiente, interruptores nas paredes, portas operacionais e colisão completa em árvores e bancos." />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
@@ -23,15 +23,24 @@
   <body>
     <div id="canvas-container"></div>
 
-    <!-- UI Overlay com Glassmorphism -->
-    <main id="hud-overlay">
+    <!-- Botão Flutuante Superior para Mostrar/Ocultar HUD -->
+    <button id="floating-hud-toggle" class="floating-hud-btn" title="Alternar Visibilidade da HUD (Teclado: H)">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+        <circle cx="12" cy="12" r="3"/>
+      </svg>
+      <span id="hud-toggle-label">Mostrar HUD (H)</span>
+    </button>
+
+    <!-- UI Overlay com Glassmorphism (Inicia Oculta) -->
+    <main id="hud-overlay" class="hud-hidden">
       <header class="hud-header glass-panel">
         <div class="logo-group">
           <div class="status-indicator live"></div>
           <h1>Hotel <span>3D</span></h1>
-          <span class="version-tag">Fase 4 • Portas & 6 Salas</span>
+          <span class="version-tag">Desafio • Busca pelas Chaves</span>
         </div>
-        <p class="subtitle">Hotel 6 Salas de Tamanhos Variados • Portas 3D • Zoom Ajustável</p>
+        <p class="subtitle">Encontre as Chaves Sequenciais nos Quartos • Obtenha a Chave Mestre para Escapar</p>
       </header>
 
       <!-- Painel de Controles e Telemetria -->
@@ -50,26 +59,58 @@
             <div class="key key-space" id="key-space"><span>Espaço (Pular)</span></div>
           </div>
         </div>
-        <p class="keys-legend">Use <strong>WASD / Setas</strong> para andar • <strong>Scroll</strong> para Zoom</p>
+        <p class="keys-legend">WASD / 🎮 Analógico: Mover • <strong>G / [RT]: Atirar</strong> • R / [RB]: Recarregar • [LT]/[LB]: Zoom • D-Pad Cima / Q: Curar • E / [X]: Interagir • Start / Esc: Pausa</p>
+
+        <div class="divider"></div>
+
+        <!-- Seção de Inventário de Chaves -->
+        <div class="keys-inventory-section">
+          <h3 class="panel-subtitle">Inventário de Chaves 🔑</h3>
+          <div class="keys-grid">
+            <div class="key-badge" id="key-badge-102" title="Chave do Escudo (Desbloqueia Q.102)"><span>🔒 Escudo 🛡️</span></div>
+            <div class="key-badge" id="key-badge-103" title="Chave da Espada (Desbloqueia Q.103)"><span>🔒 Espada ⚔️</span></div>
+            <div class="key-badge" id="key-badge-104" title="Chave da Águia (Desbloqueia Q.104)"><span>🔒 Águia 🦅</span></div>
+            <div class="key-badge" id="key-badge-105" title="Chave do Leão (Desbloqueia Q.105)"><span>🔒 Leão 🦁</span></div>
+            <div class="key-badge" id="key-badge-106" title="Chave do Elmo (Desbloqueia Q.106)"><span>🔒 Elmo 🪖</span></div>
+            <div class="key-badge key-master" id="key-badge-master" title="Chave Mestre de Saída"><span>🔒 Mestre 👑</span></div>
+          </div>
+        </div>
+
+        <div class="divider"></div>
+
+        <!-- Seção de Armamento e Munição -->
+        <div class="weapons-inventory-section">
+          <h3 class="panel-subtitle">Armamento & Munição 🔫</h3>
+          <div class="weapon-status-card">
+            <div class="weapon-name-row">
+              <span id="weapon-equipped-name" class="weapon-equipped-badge unequipped">Desarmado 🖐️</span>
+              <span id="weapon-ammo-display" class="weapon-ammo-count">-- / --</span>
+            </div>
+            <div class="weapons-grid">
+              <div class="weapon-badge" id="badge-weapon-revolver" title="Revólver (Pressione 1 para equipar)"><span>🔒 Revólver 🔫</span></div>
+              <div class="weapon-badge" id="badge-weapon-shotgun" title="Shotgun (Pressione 2 para equipar)"><span>🔒 Shotgun 💥</span></div>
+            </div>
+            <div class="ammo-reserve-row">
+              <span class="ammo-type-label">📦 Revólver: <strong id="ammo-count-revolver">0</strong></span>
+              <span class="ammo-type-label">📦 Shotgun: <strong id="ammo-count-shotgun">0</strong></span>
+            </div>
+          </div>
+        </div>
 
         <div class="divider"></div>
 
         <div class="stats-group">
           <div class="stat-item">
-            <span class="stat-label">Localização:</span>
+            <span class="stat-label">Ambiente Atual:</span>
             <span class="stat-value badge-room" id="stat-room">Corredor Central 🏨</span>
           </div>
           <div class="stat-item">
-            <span class="stat-label">Zoom Câmera:</span>
-            <span class="stat-value font-mono" id="stat-zoom">9.5m</span>
-          </div>
-          <div class="stat-item">
-            <span class="stat-label">Arma de Portais:</span>
-            <span class="stat-value badge-gun-unarmed" id="stat-gun">No Q.103 🔫</span>
-          </div>
-          <div class="stat-item">
             <span class="stat-label">Luz do Ambiente:</span>
-            <span class="stat-value badge-light-on" id="stat-light">Acesa 💡</span>
+            <span class="stat-value badge-light-off" id="stat-light">Apagada 🌙</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-label">Objetivo Atual:</span>
+            <span class="stat-value font-mono" id="stat-goal" style="color: #facc15;">Entre na Suíte 101</span>
           </div>
           <div class="stat-item">
             <span class="stat-label">Posição X / Z:</span>
@@ -80,7 +121,7 @@
             <span class="stat-value font-mono" id="stat-y-speed">1.00m • 0.0m/s</span>
           </div>
           <div class="stat-item">
-            <span class="stat-label">Status de Colisão:</span>
+            <span class="stat-label">Status Colisão:</span>
             <span class="stat-value badge-safe" id="stat-collision">Espaço Livre</span>
           </div>
         </div>
@@ -94,11 +135,18 @@
               🔍 Zoom -
             </button>
           </div>
+          <button id="btn-toggle-hud" class="btn-action">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+              <circle cx="12" cy="12" r="3"/>
+            </svg>
+            Ocultar HUD (H)
+          </button>
           <button id="btn-toggle-light" class="btn-action">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
             </svg>
-            Interruptor (E)
+            Luz do Quarto Atual (E)
           </button>
           <button id="btn-reset" class="btn-action">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -115,68 +163,347 @@
             Alternar Ângulo
           </button>
         </div>
-
-        <div class="divider"></div>
-
-        <!-- Seção da Arma de Portais (Fase 2) -->
-        <div class="portal-status-section">
-          <div class="portal-title-row">
-            <span class="panel-subtitle">Arma de Portais</span>
-            <span class="badge-phase">Fase 2</span>
-          </div>
-
-          <div class="stats-group">
-            <div class="stat-item">
-              <span class="stat-label">Portal A (Azul):</span>
-              <span class="stat-value badge-portal-empty" id="stat-portal-blue">Não disparado</span>
-            </div>
-            <div class="stat-item">
-              <span class="stat-label">Portal B (Laranja):</span>
-              <span class="stat-value badge-portal-empty" id="stat-portal-orange">Não disparado</span>
-            </div>
-          </div>
-
-          <div class="portal-mouse-hints">
-            <div class="mouse-hint-item">
-              <span class="mouse-key-badge blue-key">Esq</span>
-              <span>Portal Azul (A)</span>
-            </div>
-            <div class="mouse-hint-item">
-              <span class="mouse-key-badge orange-key">Dir</span>
-              <span>Portal Laranja (B)</span>
-            </div>
-          </div>
-
-          <button id="btn-clear-portals" class="btn-action btn-clear-portals">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <circle cx="12" cy="12" r="10"/>
-              <line x1="15" y1="9" x2="9" y2="15"/>
-              <line x1="9" y1="9" x2="15" y2="15"/>
-            </svg>
-            Limpar Portais
-          </button>
-        </div>
       </aside>
 
-      <!-- Retículo Central (Crosshair) Estilo Portal Gun -->
-      <div id="crosshair-container" class="unarmed" aria-hidden="true">
-        <div id="crosshair-bracket-left" class="crosshair-bracket left-bracket" title="Portal A (Azul)"></div>
+      <!-- Retículo Central Discreto para Mira/Seleção -->
+      <div id="crosshair-container" aria-hidden="true">
         <div id="crosshair-center-dot"></div>
-        <div id="crosshair-bracket-right" class="crosshair-bracket right-bracket" title="Portal B (Laranja)"></div>
-      </div>
-
-      <!-- Prompt de Interação Próximo a Objetos / Pedestal / Interruptor -->
-      <div id="interaction-prompt" class="interaction-prompt glass-panel hidden">
-        <span class="kbd-badge" id="prompt-key">E</span>
-        <span id="prompt-text">Coletar Arma de Portais</span>
       </div>
 
       <!-- Dica inferior -->
       <footer class="hud-footer glass-panel">
-        <span><strong style="color: #38bdf8;">Espaço:</strong> Pular • <strong style="color: #facc15;">Pegue a Portal Gun no Pedestal</strong> para atirar portais azul (Esq) e laranja (Dir)</span>
+        <span><strong style="color: #38bdf8;">WASD / [LS]:</strong> Mover • <strong style="color: #38bdf8;">Espaço / [A]:</strong> Pular • <strong style="color: #ef4444;">G / [RT]:</strong> Atirar • <strong style="color: #facc15;">R / [RB]:</strong> Recarregar • <strong style="color: #34d399;">E / [X]:</strong> Interagir</span>
       </footer>
     </main>
+
+    <!-- Barra de Vida do Chefe (Aparece no topo na Sala 106) -->
+    <div id="boss-health-container" class="boss-health-container glass-panel hidden">
+      <div class="boss-header">
+        <span class="boss-skull">💀</span>
+        <span class="boss-name" id="boss-name">GUARDIÃO DA CÂMARA [CHEFE]</span>
+        <span class="boss-hp-num" id="boss-hp-num">450 / 450</span>
+      </div>
+      <div class="boss-hp-track">
+        <div class="boss-hp-fill" id="boss-hp-fill" style="width: 100%;"></div>
+      </div>
+    </div>
+
+    <!-- Vinhetas de Dano e Cura na Tela -->
+    <div id="screen-damage-overlay" class="screen-fx-overlay damage-overlay"></div>
+    <div id="screen-heal-overlay" class="screen-fx-overlay heal-overlay"></div>
+
+    <!-- Mostrador Permanente de Vida, Arma e Munição (Sempre Visível) -->
+    <div id="permanent-weapon-hud" class="permanent-weapon-hud glass-panel">
+      <!-- Seção de Saúde do Jogador -->
+      <div class="player-health-section">
+        <div class="health-header-row">
+          <span class="health-ecg-icon" id="perm-ecg-icon">💚</span>
+          <span class="health-status-badge fine" id="perm-health-status">FINE</span>
+          <span class="health-numeric" id="perm-health-num">100 / 100</span>
+        </div>
+        <div class="health-bar-track">
+          <div class="health-bar-fill fine-fill" id="perm-health-fill" style="width: 100%;"></div>
+        </div>
+      </div>
+
+      <div class="hud-v-divider"></div>
+
+      <!-- Seção de Armamento -->
+      <div class="weapon-hud-left">
+        <div class="weapon-icon-badge" id="perm-weapon-icon">🖐️</div>
+        <div class="weapon-info-col">
+          <span class="weapon-status-tag" id="perm-weapon-status">Armamento</span>
+          <span class="weapon-display-name" id="perm-weapon-name">Desarmado</span>
+        </div>
+      </div>
+
+      <div class="weapon-hud-right">
+        <div class="ammo-counter-container">
+          <span class="ammo-mag-big" id="perm-ammo-mag">--</span>
+          <span class="ammo-slash">/</span>
+          <span class="ammo-res-small" id="perm-ammo-res">--</span>
+        </div>
+        <span class="ammo-sublabel" id="perm-ammo-label">Slot Livre (1/2)</span>
+      </div>
+
+      <div class="hud-v-divider"></div>
+
+      <!-- Seção de Remédios / Cura Rápida -->
+      <div class="medkit-hud-section" id="perm-medkit-btn" title="Usar Remédio (+50 HP) • Tecla Q ou [LB]/[D-Pad Baixo]">
+        <div class="medkit-badge">
+          <span class="medkit-icon">💊</span>
+          <span class="medkit-count" id="perm-medkit-count">0</span>
+        </div>
+        <span class="medkit-hint">Cura (Q)</span>
+      </div>
+    </div>
+
+    <!-- Prompt de Interação Independente (Permanece Visível mesmo com a HUD Oculta) -->
+    <div id="interaction-prompt" class="interaction-prompt glass-panel hidden">
+      <span class="kbd-badge" id="prompt-key">E</span>
+      <span id="prompt-text">Interagir com Interruptor</span>
+    </div>
+
+    <!-- Modal de Início (Menu Principal do Jogo com Telas Navegáveis) -->
+    <div id="start-menu-modal">
+      <div class="start-menu-card glass-panel">
+        <!-- TELA 1: Menu Principal -->
+        <div id="menu-screen-main" class="menu-screen">
+          <div class="menu-header">
+            <div class="hotel-emblem">🏨</div>
+            <h1>HOTEL <span>3D</span></h1>
+            <p class="menu-tagline">Desafio das Chaves Sequenciais & Sobrevivência</p>
+          </div>
+
+          <div class="menu-actions-stack">
+            <button id="btn-start-game" class="btn-start-game">
+              <span>INICIAR JOGO</span>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <polygon points="5 3 19 12 5 21 5 3"/>
+              </svg>
+            </button>
+
+            <button id="btn-open-difficulty" class="btn-menu-secondary">
+              <span class="btn-icon">⚙️</span>
+              <span class="btn-label">Configurar Dificuldade</span>
+              <span id="main-diff-tag" class="diff-tag-pill">NORMAL (1.0x)</span>
+            </button>
+
+            <button id="btn-open-instructions" class="btn-menu-secondary">
+              <span class="btn-icon">📜</span>
+              <span class="btn-label">Missão & Controles</span>
+            </button>
+          </div>
+
+          <span class="start-key-hint">Pressione <strong>Espaço</strong>, <strong>Enter</strong> ou <strong>[A] no Controle</strong></span>
+        </div>
+
+        <!-- TELA 2: Configurações de Dificuldade -->
+        <div id="menu-screen-difficulty" class="menu-screen hidden">
+          <div class="menu-header compact">
+            <div class="diff-header-icon">⚙️</div>
+            <h2>DIFICULDADE DO JOGO</h2>
+            <p class="menu-tagline">Ajuste a velocidade e a vida dos infectados</p>
+          </div>
+
+          <div class="menu-difficulty-section">
+            <div class="difficulty-section-header">
+              <span class="diff-title-row">
+                <span class="diff-title-icon">📊</span>
+                <strong>Status Atual:</strong>
+              </span>
+              <span id="current-diff-badge" class="difficulty-badge normal">🟡 NORMAL (1.0x)</span>
+            </div>
+
+            <!-- Botões de Preset Rápido -->
+            <div class="difficulty-presets-grid">
+              <button type="button" class="btn-preset" data-preset="easy" id="preset-easy">
+                <span class="preset-emoji">🟢</span>
+                <span class="preset-name">Fácil</span>
+                <span class="preset-sub">Vel 70% • HP 70%</span>
+              </button>
+              <button type="button" class="btn-preset active" data-preset="normal" id="preset-normal">
+                <span class="preset-emoji">🟡</span>
+                <span class="preset-name">Normal</span>
+                <span class="preset-sub">Vel 100% • HP 100%</span>
+              </button>
+              <button type="button" class="btn-preset" data-preset="hard" id="preset-hard">
+                <span class="preset-emoji">🔴</span>
+                <span class="preset-name">Difícil</span>
+                <span class="preset-sub">Vel 130% • HP 140%</span>
+              </button>
+              <button type="button" class="btn-preset" data-preset="nightmare" id="preset-nightmare">
+                <span class="preset-emoji">💀</span>
+                <span class="preset-name">Pesadelo</span>
+                <span class="preset-sub">Vel 165% • HP 180%</span>
+              </button>
+            </div>
+
+            <!-- Sliders de Ajuste Fino em Tempo Real -->
+            <div class="difficulty-sliders-group">
+              <div class="diff-slider-item">
+                <div class="slider-header-row">
+                  <span class="slider-label">🏃 Velocidade dos Inimigos:</span>
+                  <span class="slider-val" id="val-enemy-speed">100% (1.00x)</span>
+                </div>
+                <input type="range" id="slider-enemy-speed" min="50" max="220" step="5" value="100" class="diff-range-slider" />
+              </div>
+
+              <div class="diff-slider-item">
+                <div class="slider-header-row">
+                  <span class="slider-label">🩸 Vida dos Inimigos:</span>
+                  <span class="slider-val" id="val-enemy-hp">100% (1.00x)</span>
+                </div>
+                <input type="range" id="slider-enemy-hp" min="40" max="260" step="5" value="100" class="diff-range-slider" />
+              </div>
+            </div>
+          </div>
+
+          <button id="btn-back-from-diff" class="btn-menu-back">
+            <span>◀ VOLTAR AO MENU PRINCIPAL</span>
+          </button>
+        </div>
+
+        <!-- TELA 3: Missão e Controles -->
+        <div id="menu-screen-instructions" class="menu-screen hidden">
+          <div class="menu-header compact">
+            <div class="diff-header-icon">📜</div>
+            <h2>MANUAL DO HOTEL</h2>
+            <p class="menu-tagline">Orientações de sobrevivência</p>
+          </div>
+
+          <div class="menu-instructions">
+            <div class="instruction-item">
+              <span class="inst-icon">🗝️</span>
+              <div>
+                <strong>Missão Principal</strong>
+                <p>Explore as 6 salas, desvende chaves sequenciais e abra o Portão Mestre para escapar.</p>
+              </div>
+            </div>
+            <div class="instruction-item">
+              <span class="inst-icon">🔫</span>
+              <div>
+                <strong>Arsenal & Defesa</strong>
+                <p>Colete o Revólver (Q.102) e a Shotgun (Q.104). Pressione <strong>G / [RT]</strong> para atirar e <strong>R / [RB]</strong> para recarregar.</p>
+              </div>
+            </div>
+            <div class="instruction-item">
+              <span class="inst-icon">💊</span>
+              <div>
+                <strong>Medicamentos</strong>
+                <p>Encontre caixas médicas nos quartos para recuperar +50 HP com a tecla <strong>Q</strong> ou <strong>D-Pad Cima</strong>.</p>
+              </div>
+            </div>
+            <div class="instruction-item">
+              <span class="inst-icon">🎮</span>
+              <div>
+                <strong>Pausar & Câmera</strong>
+                <p><strong>Start / Menu</strong> no controle ou <strong>Esc / P</strong> para pausar/despausar. Use <strong>[LT] / [LB]</strong> ou scroll do mouse para controlar o Zoom da câmera.</p>
+              </div>
+            </div>
+          </div>
+
+          <button id="btn-back-from-inst" class="btn-menu-back">
+            <span>◀ VOLTAR AO MENU PRINCIPAL</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal de Pausa (Ativado com Start / Esc / P) -->
+    <div id="pause-modal" class="hidden">
+      <div class="pause-card glass-panel">
+        <!-- Tela Principal de Pausa -->
+        <div id="pause-screen-main" class="pause-screen">
+          <div class="menu-header compact">
+            <div class="hotel-emblem">⏸️</div>
+            <h2>JOGO PAUSADO</h2>
+            <p class="menu-tagline">Hotel 3D • Sobrevivência</p>
+          </div>
+
+          <div class="menu-actions-stack">
+            <button id="btn-resume-game" class="btn-start-game">
+              <span>RETOMAR JOGO ▶</span>
+            </button>
+
+            <button id="btn-pause-difficulty" class="btn-menu-secondary">
+              <span class="btn-icon">⚙️</span>
+              <span class="btn-label">Ajustar Dificuldade</span>
+              <span id="pause-diff-tag" class="diff-tag-pill">NORMAL (1.0x)</span>
+            </button>
+
+            <button id="btn-pause-restart" class="btn-menu-secondary btn-danger-action">
+              <span class="btn-icon">🔄</span>
+              <span class="btn-label">Reiniciar Partida</span>
+            </button>
+          </div>
+
+          <span class="start-key-hint">Pressione <strong>Start</strong> ou <strong>Esc</strong> para despausar</span>
+        </div>
+
+        <!-- Tela de Dificuldade em Pausa -->
+        <div id="pause-screen-diff" class="pause-screen hidden">
+          <div class="menu-header compact">
+            <div class="diff-header-icon">⚙️</div>
+            <h2>DIFICULDADE EM TEMPO REAL</h2>
+            <p class="menu-tagline">Modificações aplicadas instantaneamente</p>
+          </div>
+
+          <div class="menu-difficulty-section">
+            <div class="difficulty-presets-grid">
+              <button type="button" class="btn-preset-pause" data-preset="easy">
+                <span class="preset-emoji">🟢</span>
+                <span class="preset-name">Fácil</span>
+              </button>
+              <button type="button" class="btn-preset-pause active" data-preset="normal">
+                <span class="preset-emoji">🟡</span>
+                <span class="preset-name">Normal</span>
+              </button>
+              <button type="button" class="btn-preset-pause" data-preset="hard">
+                <span class="preset-emoji">🔴</span>
+                <span class="preset-name">Difícil</span>
+              </button>
+              <button type="button" class="btn-preset-pause" data-preset="nightmare">
+                <span class="preset-emoji">💀</span>
+                <span class="preset-name">Pesadelo</span>
+              </button>
+            </div>
+
+            <div class="difficulty-sliders-group">
+              <div class="diff-slider-item">
+                <div class="slider-header-row">
+                  <span class="slider-label">🏃 Velocidade:</span>
+                  <span class="slider-val" id="pause-val-enemy-speed">100%</span>
+                </div>
+                <input type="range" id="pause-slider-enemy-speed" min="50" max="220" step="5" value="100" class="diff-range-slider" />
+              </div>
+              <div class="diff-slider-item">
+                <div class="slider-header-row">
+                  <span class="slider-label">🩸 Vida:</span>
+                  <span class="slider-val" id="pause-val-enemy-hp">100%</span>
+                </div>
+                <input type="range" id="pause-slider-enemy-hp" min="40" max="260" step="5" value="100" class="diff-range-slider" />
+              </div>
+            </div>
+          </div>
+
+          <button id="btn-back-from-pause-diff" class="btn-menu-back">
+            <span>◀ VOLTAR À PAUSA</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal de Vitória (Escape do Hotel) -->
+    <div id="victory-modal" class="hidden">
+      <div class="victory-card glass-panel">
+        <div class="trophy-icon">
+          <svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/>
+            <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/>
+            <path d="M4 22h16"/>
+            <path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/>
+            <path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/>
+            <path d="M18 2H6v7a6 6 0 0 0 12 0V2z"/>
+          </svg>
+        </div>
+        <h2>Você Escapou! 👑</h2>
+        <p>Parabéns! Você encontrou todas as chaves sequenciais dos 6 quartos, derrotou o Guardião da Câmara e abriu o Portão Principal de Saída!</p>
+        <button id="btn-replay" class="btn-replay">Jogar Novamente 🎮</button>
+      </div>
+    </div>
+
+    <!-- Modal de Game Over (Morte do Jogador) -->
+    <div id="game-over-modal" class="hidden">
+      <div class="game-over-card glass-panel">
+        <div class="skull-icon">💀</div>
+        <h2>VOCÊ MORREU</h2>
+        <p>Os infectados do hotel dominaram você. Colete remédios nas salas e mantenha distância ao atirar!</p>
+        <button id="btn-game-over-restart" class="btn-game-over">TENTAR NOVAMENTE 🔄</button>
+      </div>
+    </div>
 
     <script type="module" src="./main.js"></script>
   </body>
 </html>
+
