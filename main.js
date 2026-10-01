@@ -50,7 +50,11 @@ orbitControls.enabled = false;
 let isThirdPerson = true;
 
 // --- EFEITOS SONOROS SINTETIZADOS VIA WEB AUDIO API ---
+// Desativado temporariamente conforme feedback
+const AUDIO_ENABLED = false;
+
 function playSwitchSound(state) {
+  if (!AUDIO_ENABLED) return;
   try {
     const ctx = new (window.AudioContext || window.webkitAudioContext)();
     const osc = ctx.createOscillator();
@@ -68,6 +72,7 @@ function playSwitchSound(state) {
 }
 
 function playDoorSound(isOpen) {
+  if (!AUDIO_ENABLED) return;
   try {
     const ctx = new (window.AudioContext || window.webkitAudioContext)();
     const now = ctx.currentTime;
@@ -84,6 +89,7 @@ function playDoorSound(isOpen) {
 }
 
 function playJumpSound() {
+  if (!AUDIO_ENABLED) return;
   try {
     const ctx = new (window.AudioContext || window.webkitAudioContext)();
     const now = ctx.currentTime;
@@ -102,6 +108,7 @@ function playJumpSound() {
 }
 
 function playKeySound() {
+  if (!AUDIO_ENABLED) return;
   try {
     const ctx = new (window.AudioContext || window.webkitAudioContext)();
     const now = ctx.currentTime;
@@ -120,6 +127,7 @@ function playKeySound() {
 }
 
 function playLockedSound() {
+  if (!AUDIO_ENABLED) return;
   try {
     const ctx = new (window.AudioContext || window.webkitAudioContext)();
     const now = ctx.currentTime;
@@ -138,6 +146,7 @@ function playLockedSound() {
 }
 
 function playVictorySound() {
+  if (!AUDIO_ENABLED) return;
   try {
     const ctx = new (window.AudioContext || window.webkitAudioContext)();
     const notes = [523.25, 659.25, 783.99, 1046.5];
@@ -158,6 +167,7 @@ function playVictorySound() {
 }
 
 function playGunshotSound(weaponType) {
+  if (!AUDIO_ENABLED) return;
   try {
     const ctx = new (window.AudioContext || window.webkitAudioContext)();
     const now = ctx.currentTime;
@@ -185,6 +195,7 @@ function playGunshotSound(weaponType) {
 }
 
 function playReloadSound() {
+  if (!AUDIO_ENABLED) return;
   try {
     const ctx = new (window.AudioContext || window.webkitAudioContext)();
     const now = ctx.currentTime;
@@ -203,6 +214,7 @@ function playReloadSound() {
 }
 
 function playDryFireSound() {
+  if (!AUDIO_ENABLED) return;
   try {
     const ctx = new (window.AudioContext || window.webkitAudioContext)();
     const now = ctx.currentTime;
@@ -220,6 +232,7 @@ function playDryFireSound() {
 }
 
 function playAmmoPickupSound() {
+  if (!AUDIO_ENABLED) return;
   try {
     const ctx = new (window.AudioContext || window.webkitAudioContext)();
     const now = ctx.currentTime;
@@ -238,6 +251,7 @@ function playAmmoPickupSound() {
 }
 
 function playHurtSound() {
+  if (!AUDIO_ENABLED) return;
   try {
     const ctx = new (window.AudioContext || window.webkitAudioContext)();
     const now = ctx.currentTime;
@@ -256,6 +270,7 @@ function playHurtSound() {
 }
 
 function playHealSound() {
+  if (!AUDIO_ENABLED) return;
   try {
     const ctx = new (window.AudioContext || window.webkitAudioContext)();
     const freqs = [330, 440, 554.37, 659.25, 880];
@@ -277,6 +292,7 @@ function playHealSound() {
 }
 
 function playZombieHitSound() {
+  if (!AUDIO_ENABLED) return;
   try {
     const ctx = new (window.AudioContext || window.webkitAudioContext)();
     const now = ctx.currentTime;
@@ -295,6 +311,7 @@ function playZombieHitSound() {
 }
 
 function playZombieGroanSound() {
+  if (!AUDIO_ENABLED) return;
   try {
     const ctx = new (window.AudioContext || window.webkitAudioContext)();
     const now = ctx.currentTime;
@@ -314,6 +331,7 @@ function playZombieGroanSound() {
 }
 
 function playZombieDeathSound(isBoss = false) {
+  if (!AUDIO_ENABLED) return;
   try {
     const ctx = new (window.AudioContext || window.webkitAudioContext)();
     const now = ctx.currentTime;
@@ -332,6 +350,7 @@ function playZombieDeathSound(isBoss = false) {
 }
 
 function playBossRoarSound() {
+  if (!AUDIO_ENABLED) return;
   try {
     const ctx = new (window.AudioContext || window.webkitAudioContext)();
     const now = ctx.currentTime;
