@@ -89,14 +89,41 @@ class AssetManager {
 
   // --- SONS ---
   /**
-   * Carrega um efeito sonoro ou música (ex: .mp3, .ogg)
+   * Carrega um efeito sonoro ou música (.mp3, .m4a, .ogg, .wav)
    * @param {string} key - Nome para identificar o som
-   * @param {string} path - Caminho do arquivo (ex: 'assets/sounds/tiro.mp3')
+   * @param {string} pathOrBaseName - Caminho ou nome base do som
    */
-  loadSound(key, path) {
-    this.audioLoader.load(path, (buffer) => {
-      this.sounds[key] = buffer;
-    });
+  loadSound(key, pathOrBaseName) {
+    if (!this.standaloneAudioLoader) {
+      this.standaloneAudioLoader = new THREE.AudioLoader();
+    }
+
+    if (pathOrBaseName.includes('.')) {
+      this.standaloneAudioLoader.load(pathOrBaseName, (buffer) => {
+        this.sounds[key] = buffer;
+      }, undefined, () => {});
+      return;
+    }
+
+    const extensions = ['.mp3', '.m4a', '.ogg', '.wav'];
+    const basePath = pathOrBaseName.startsWith('assets/') ? pathOrBaseName : `assets/sounds/${pathOrBaseName}`;
+
+    const tryNext = (idx) => {
+      if (idx >= extensions.length) return;
+      const fullPath = `${basePath}${extensions[idx]}`;
+      this.standaloneAudioLoader.load(
+        fullPath,
+        (buffer) => {
+          this.sounds[key] = buffer;
+        },
+        undefined,
+        () => {
+          tryNext(idx + 1);
+        }
+      );
+    };
+
+    tryNext(0);
   }
 
   getSoundBuffer(key) {

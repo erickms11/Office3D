@@ -14,7 +14,8 @@
           "three": "https://unpkg.com/three@0.168.0/build/three.module.js",
           "three/addons/": "https://unpkg.com/three@0.168.0/examples/jsm/",
           "three/examples/jsm/": "https://unpkg.com/three@0.168.0/examples/jsm/",
-          "three/examples/jsm/controls/OrbitControls.js": "https://unpkg.com/three@0.168.0/examples/jsm/controls/OrbitControls.js"
+          "three/examples/jsm/controls/OrbitControls.js": "https://unpkg.com/three@0.168.0/examples/jsm/controls/OrbitControls.js",
+          "three/examples/jsm/utils/SkeletonUtils.js": "https://unpkg.com/three@0.168.0/examples/jsm/utils/SkeletonUtils.js"
         }
       }
     </script>
@@ -59,7 +60,7 @@
             <div class="key key-space" id="key-space"><span>Espaço (Pular)</span></div>
           </div>
         </div>
-        <p class="keys-legend">WASD / 🎮 Analógico: Mover • <strong>G / [RT]: Atirar</strong> • R / [RB]: Recarregar • [LT]/[LB]: Zoom • D-Pad Cima / Q: Curar • E / [X]: Interagir • Start / Esc: Pausa</p>
+        <p class="keys-legend">WASD / 🎮 LS: Mover • <strong>[LT] / RMB: Mirar</strong> • <strong>[RT] / G: Atirar</strong> • [RB] / R: Recarregar • [B]/[Y]: Zoom • D-Pad Cima / Q: Curar • [X] / E: Interagir • Start: Pausa</p>
 
         <div class="divider"></div>
 
@@ -172,7 +173,7 @@
 
       <!-- Dica inferior -->
       <footer class="hud-footer glass-panel">
-        <span><strong style="color: #38bdf8;">WASD / [LS]:</strong> Mover • <strong style="color: #38bdf8;">Espaço / [A]:</strong> Pular • <strong style="color: #ef4444;">G / [RT]:</strong> Atirar • <strong style="color: #facc15;">R / [RB]:</strong> Recarregar • <strong style="color: #34d399;">E / [X]:</strong> Interagir</span>
+        <span><strong style="color: #38bdf8;">WASD / [LS]:</strong> Mover • <strong style="color: #38bdf8;">Espaço / [A]:</strong> Pular • <strong style="color: #f43f5e;">[LT] / RMB:</strong> Mirar • <strong style="color: #ef4444;">[RT] / G:</strong> Atirar • <strong style="color: #facc15;">[RB] / R:</strong> Recarregar • <strong style="color: #34d399;">[X] / E:</strong> Interagir • <strong style="color: #a855f7;">[B] / [Y]:</strong> Zoom</span>
       </footer>
     </main>
 
@@ -286,6 +287,12 @@
               </svg>
             </button>
 
+            <button id="btn-start-test-room" class="btn-menu-secondary" style="border: 1px solid rgba(56, 189, 248, 0.4); background: rgba(56, 189, 248, 0.12);">
+              <span class="btn-icon">🧪</span>
+              <span class="btn-label">Sala de Testes (Sandbox)</span>
+              <span class="diff-tag-pill" style="background: rgba(56,189,248,0.25); color: #38bdf8;">TEST LAB</span>
+            </button>
+
             <button id="btn-open-difficulty" class="btn-menu-secondary">
               <span class="btn-icon">⚙️</span>
               <span class="btn-label">Configurar Dificuldade</span>
@@ -386,8 +393,8 @@
             <div class="instruction-item">
               <span class="inst-icon">🔫</span>
               <div>
-                <strong>Arsenal & Defesa</strong>
-                <p>Colete o Revólver (Q.102) e a Shotgun (Q.104). Pressione <strong>G / [RT]</strong> para atirar e <strong>R / [RB]</strong> para recarregar.</p>
+                <strong>Arsenal & Postura de Mira</strong>
+                <p>Colete o Revólver (Q.102) e a Shotgun (Q.104). Segure <strong>[LT]</strong> (ou Botão Direito do Mouse / F) para <strong>Armar/Mirar</strong> e pressione <strong>[RT] / G</strong> para atirar. Recarregue com <strong>[RB] / R</strong>.</p>
               </div>
             </div>
             <div class="instruction-item">
@@ -401,7 +408,7 @@
               <span class="inst-icon">🎮</span>
               <div>
                 <strong>Pausar & Câmera</strong>
-                <p><strong>Start / Menu</strong> no controle ou <strong>Esc / P</strong> para pausar/despausar. Use <strong>[LT] / [LB]</strong> ou scroll do mouse para controlar o Zoom da câmera.</p>
+                <p><strong>Start / Menu</strong> no controle ou <strong>Esc / P</strong> para pausar/despausar. Em jogo, use <strong>[B] / [Y]</strong> no controle ou scroll do mouse para controlar o Zoom da câmera.</p>
               </div>
             </div>
           </div>
@@ -438,6 +445,11 @@
             <button id="btn-pause-restart" class="btn-menu-secondary btn-danger-action">
               <span class="btn-icon">🔄</span>
               <span class="btn-label">Reiniciar Partida</span>
+            </button>
+
+            <button id="btn-pause-menu" class="btn-menu-secondary">
+              <span class="btn-icon">🏠</span>
+              <span class="btn-label">Menu Principal</span>
             </button>
           </div>
 

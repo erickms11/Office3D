@@ -60,15 +60,16 @@ Seu objetivo é explorar as 6 salas, desvendar os segredos de cada ambiente, adq
 | **Mover Personagem** | `W`, `A`, `S`, `D` | **Analógico Esquerdo** |
 | **Girar Câmera** | Mover Mouse / Arrastar | **Analógico Direito** |
 | **Pular** | `Espaço` | **Botão A** (0) |
-| **Atirar** | `G` | **Gatilho Direito [RT]** (7) |
+| **Armar / Mirar (Aim)** | `Botão Direito` / `F` | **Gatilho Esquerdo [LT]** (6) |
+| **Atirar (Disparo)** | `G` (enquanto mira) | **Gatilho Direito [RT]** (7) (enquanto mira) |
 | **Recarregar** | `R` | **Botão [RB]** (5) |
-| **Zoom In / Mira** | Scroll Cima | **Gatilho Esquerdo [LT]** (6) |
-| **Zoom Out** | Scroll Baixo | **Botão [LB]** (4) |
+| **Zoom In (Aproximar)** | Scroll Cima | **Botão B** (1) *(em jogo)* |
+| **Zoom Out (Afastar)** | Scroll Baixo | **Botão Y** (3) *(em jogo)* |
 | **Usar Remédio 💊** | `Q` | **D-Pad Cima** (12) |
-| **Interagir / Coletar** | `E` (ou clique) | **Botão X** (2) |
-| **Interruptor de Luz** | `E` (junto à parede) | **Botão B** (1) |
-| **Alternar Armas** | `1`, `2`, `3` | **Botão Y** (3) / **D-Pad** |
+| **Interagir / Coletar / Luz** | `E` (ou clique) | **Botão X** (2) |
+| **Equipar Armas** | `1`, `2`, `3` | **D-Pad Esquerda / Direita / Baixo** |
 | **Pausar / Despausar** | `Esc` ou `P` | **Botão Start / Menu** (9) |
+| **Voltar (Menus / Modais)** | `Esc` | **Botão B** (1) *(nos menus)* |
 | **Mostrar/Ocultar HUD** | `H` | **Botão Back / Select** (8) |
 
 ---

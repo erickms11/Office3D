@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import * as SkeletonUtils from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { assetManager } from './AssetManager.js';
 
 // --- CONFIGURAÇÃO E CONSTANTES DO HOTEL ---
@@ -20,8 +21,8 @@ const BOUNDS = {
 // --- INICIALIZAÇÃO DA CENA ---
 const container = document.getElementById('canvas-container');
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x0a0e17);
-scene.fog = new THREE.FogExp2(0x0a0e17, 0.002);
+scene.background = new THREE.Color(0x020306);
+scene.fog = new THREE.FogExp2(0x020306, 0.125);
 
 const camera = new THREE.PerspectiveCamera(
   60,
@@ -40,7 +41,7 @@ renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.45;
+renderer.toneMappingExposure = 1.02; // Iluminação geral reduzida em 30%
 container.appendChild(renderer.domElement);
 
 // Controles Orbitais
@@ -66,14 +67,123 @@ function getAudioContext() {
   return globalAudioCtx;
 }
 
-// --- HELPER PARA TOCAR ARQUIVOS DE ÁUDIO (.mp3, .ogg) ---
-function playBetterAudio(key) {
+// --- SISTEMA DE TRILHA SONORA (BGM: MENU & GAMEPLAY) ---
+const menuBGM = new Audio('assets/sounds/menu.mp3');
+menuBGM.loop = true;
+menuBGM.volume = 0.35;
+
+const GAMEPLAY_BGM_TRACKS = [
+  'assets/sounds/background1.mp3',
+  'assets/sounds/background2.mp3',
+  'assets/sounds/background3.mp3',
+  'assets/sounds/background4.mp3',
+  'assets/sounds/background5.mp3'
+];
+
+let currentGameplayAudio = null;
+let bgmPlaylistQueue = [];
+let lastPlayedBgmTrack = null;
+
+function shuffleArray(arr) {
+  const newArr = [...arr];
+  for (let i = newArr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [newArr[i], newArr[j]] = [newArr[j], newArr[i]];
+  }
+  return newArr;
+}
+
+function playMenuBGM() {
+  if (!AUDIO_ENABLED) return;
+  if (currentGameplayAudio) {
+    try { currentGameplayAudio.pause(); } catch (e) { }
+  }
+  try {
+    if (menuBGM.paused) {
+      const p = menuBGM.play();
+      if (p !== undefined) p.catch(() => { });
+    }
+  } catch (e) { }
+}
+
+function stopMenuBGM() {
+  try {
+    menuBGM.pause();
+  } catch (e) { }
+}
+
+function playNextGameplayBGM() {
+  if (!AUDIO_ENABLED || !isGameStarted || isGamePaused || isPlayerDead) return;
+
+  if (bgmPlaylistQueue.length === 0) {
+    bgmPlaylistQueue = shuffleArray(GAMEPLAY_BGM_TRACKS);
+    if (bgmPlaylistQueue.length > 1 && bgmPlaylistQueue[0] === lastPlayedBgmTrack) {
+      const temp = bgmPlaylistQueue[0];
+      bgmPlaylistQueue[0] = bgmPlaylistQueue[1];
+      bgmPlaylistQueue[1] = temp;
+    }
+  }
+
+  const nextTrackPath = bgmPlaylistQueue.shift();
+  lastPlayedBgmTrack = nextTrackPath;
+
+  if (currentGameplayAudio) {
+    currentGameplayAudio.onended = null;
+    try { currentGameplayAudio.pause(); } catch (e) { }
+    currentGameplayAudio = null;
+  }
+
+  currentGameplayAudio = new Audio(nextTrackPath);
+  currentGameplayAudio.volume = 0.30;
+  currentGameplayAudio.onended = () => {
+    playNextGameplayBGM();
+  };
+
+  const p = currentGameplayAudio.play();
+  if (p !== undefined) {
+    p.catch(() => { });
+  }
+}
+
+function startGameplayBGM() {
+  if (!AUDIO_ENABLED) return;
+  stopMenuBGM();
+
+  if (currentGameplayAudio && currentGameplayAudio.paused && !currentGameplayAudio.ended && currentGameplayAudio.currentTime > 0) {
+    const p = currentGameplayAudio.play();
+    if (p !== undefined) {
+      p.catch(() => playNextGameplayBGM());
+    }
+  } else {
+    playNextGameplayBGM();
+  }
+}
+
+function pauseGameplayBGM() {
+  if (currentGameplayAudio) {
+    try { currentGameplayAudio.pause(); } catch (e) { }
+  }
+}
+
+function stopGameplayBGM() {
+  if (currentGameplayAudio) {
+    try {
+      currentGameplayAudio.pause();
+      currentGameplayAudio.currentTime = 0;
+    } catch (e) { }
+    currentGameplayAudio = null;
+  }
+  bgmPlaylistQueue = [];
+}
+
+// --- HELPER PARA TOCAR ARQUIVOS DE ÁUDIO (.mp3, .ogg, .m4a, .wav) ---
+function playBetterAudio(key, volume = 0.5) {
   const buffer = assetManager.getSoundBuffer(key);
   if (buffer && typeof audioListener !== 'undefined') {
     try {
       const sound = new THREE.Audio(audioListener);
       sound.setBuffer(buffer);
-      sound.setVolume(0.5);
+      sound.setVolume(volume);
       sound.play();
       return true;
     } catch (e) {
@@ -86,14 +196,12 @@ function playBetterAudio(key) {
 function playSwitchSound(state) {
   if (!AUDIO_ENABLED) return;
   if (playBetterAudio('switch')) return;
-  // Fallback sintetizado desativado para evitar travadas
   return;
 }
 
 function playDoorSound(isOpen) {
   if (!AUDIO_ENABLED) return;
   if (playBetterAudio('door')) return;
-  // Fallback sintetizado desativado para evitar travadas
   return;
 }
 
@@ -101,110 +209,112 @@ function playJumpSound() {
   if (selectedCharacter === 'jane') playPlayerAnim('jump', 0.1);
   if (!AUDIO_ENABLED) return;
   if (playBetterAudio('jump')) return;
-  // Fallback sintetizado desativado para evitar travadas
   return;
 }
 
 function playKeySound() {
   if (!AUDIO_ENABLED) return;
   if (playBetterAudio('key')) return;
-  // Fallback sintetizado desativado para evitar travadas
   return;
 }
 
 function playLockedSound() {
   if (!AUDIO_ENABLED) return;
   if (playBetterAudio('locked')) return;
-  // Fallback sintetizado desativado para evitar travadas
   return;
 }
 
 function playVictorySound() {
   if (!AUDIO_ENABLED) return;
   if (playBetterAudio('victory')) return;
-  // Fallback sintetizado desativado para evitar travadas
   return;
 }
 
 function playGunshotSound(weaponType) {
   if (!AUDIO_ENABLED) return;
-  if (playBetterAudio('gunshot')) return;
-  // Fallback sintetizado desativado para evitar travadas
+  if (weaponType === 'shotgun') {
+    if (playBetterAudio('gunshot_shotgun', 0.5)) return;
+  } else {
+    if (playBetterAudio('gunshot_pistol', 0.5)) return;
+  }
+  if (playBetterAudio('gunshot', 0.5)) return;
   return;
 }
 
 function playReloadSound() {
   if (!AUDIO_ENABLED) return;
-  if (playBetterAudio('reload')) return;
-  // Fallback sintetizado desativado para evitar travadas
+  if (playBetterAudio('reload', 0.45)) return;
   return;
 }
 
 function playDryFireSound() {
   if (!AUDIO_ENABLED) return;
-  if (playBetterAudio('dryfire')) return;
-  // Fallback sintetizado desativado para evitar travadas
+  if (playBetterAudio('dryfire', 0.45)) return;
   return;
 }
 
 function playAmmoPickupSound() {
   if (!AUDIO_ENABLED) return;
-  if (playBetterAudio('ammo')) return;
-  // Fallback sintetizado desativado para evitar travadas
+  if (playBetterAudio('ammo', 0.45)) return;
   return;
 }
 
 function playHurtSound() {
   if (!AUDIO_ENABLED) return;
-  if (playBetterAudio('hurt')) return;
-  // Fallback sintetizado desativado para evitar travadas
+  if (selectedCharacter === 'jane') {
+    if (playBetterAudio('hurt_female', 0.5)) return;
+  } else {
+    if (playBetterAudio('hurt_male', 0.5)) return;
+  }
+  if (playBetterAudio('hurt', 0.5)) return;
   return;
 }
 
 function playHealSound() {
   if (!AUDIO_ENABLED) return;
-  if (playBetterAudio('heal')) return;
-  // Fallback sintetizado desativado para evitar travadas
+  if (selectedCharacter === 'jane') {
+    if (playBetterAudio('heal_female', 0.5)) return;
+  } else {
+    if (playBetterAudio('heal_male', 0.5)) return;
+  }
+  if (playBetterAudio('heal', 0.5)) return;
   return;
 }
 
+// Sons dos Zumbis com volume reduzido em 20% (0.40)
 function playZombieHitSound() {
   if (!AUDIO_ENABLED) return;
-  if (playBetterAudio('zombie_hit')) return;
-  // Fallback sintetizado desativado para evitar travadas
+  if (playBetterAudio('zombie_hit', 0.40)) return;
   return;
 }
 
 function playZombieGroanSound() {
   if (!AUDIO_ENABLED) return;
-  if (playBetterAudio('zombie_groan')) return;
-  // Fallback sintetizado desativado para evitar travadas
+  if (playBetterAudio('zombie_groan', 0.40)) return;
   return;
 }
 
 function playZombieDeathSound(isBoss = false) {
   if (!AUDIO_ENABLED) return;
-  if (playBetterAudio('zombie_death')) return;
-  // Fallback sintetizado desativado para evitar travadas
+  if (playBetterAudio('zombie_death', 0.40)) return;
   return;
 }
 
 function playBossRoarSound() {
   if (!AUDIO_ENABLED) return;
-  if (playBetterAudio('boss_roar')) return;
-  // Fallback sintetizado desativado para evitar travadas
+  if (playBetterAudio('boss_roar', 0.40)) return;
   return;
 }
 
 // --- SISTEMA DE ILUMINAÇÃO GERAL E POR AMBIENTE ---
-const ambientLight = new THREE.AmbientLight(0xffffff, 0.05);
+const ambientLight = new THREE.AmbientLight(0x080d1a, 0.008);
 scene.add(ambientLight);
 
-const hemiLight = new THREE.HemisphereLight(0x38bdf8, 0x090d16, 0.08);
+const hemiLight = new THREE.HemisphereLight(0x161f30, 0x01040f, 0.014);
 hemiLight.position.set(0, 20, 0);
 scene.add(hemiLight);
 
-const dirLight = new THREE.DirectionalLight(0xfff5ea, 0.18);
+const dirLight = new THREE.DirectionalLight(0xfff5ea, 0.02);
 dirLight.position.set(15, 22, 12);
 dirLight.castShadow = true;
 dirLight.shadow.mapSize.width = 2048;
@@ -254,9 +364,28 @@ registerRoomEnvironment('q104', 'Q.104 (Suíte Botânica)', 0x84cc16);
 registerRoomEnvironment('q105', 'Q.105 (Lavabo Serviço)', 0xfef08a);
 registerRoomEnvironment('q106', 'Q.106 (Câmara Testes)', 0xf8fafc);
 
+// --- SISTEMA DE OSCILAÇÃO / TERROR NA LUZ DO CORREDOR ---
+let corridorFlickerTimer = 0;
+let corridorNextFlickerTime = 5.0 + Math.random() * 7.0; // Fica acesa entre 5 e 12 segundos
+let corridorFlickerBugActive = false; // Se está no momento do apagão/falha
+let corridorBugDuration = 4.0; // Duração da falha (3 a 8 segundos)
+
 function toggleRoomEnvironmentLight(envId, forceState) {
   const env = roomEnvironments[envId];
   if (!env) return;
+
+  // Se o corredor estiver no meio da oscilação/apagão (bug), o interruptor não responde
+  if (envId === 'corridor' && corridorFlickerBugActive && !forceState) {
+    playDryFireSound();
+    if (interactionPrompt) interactionPrompt.classList.remove('hidden');
+    if (promptText) promptText.textContent = '⚡ Curto-circuito no corredor! O interruptor não responde...';
+    setTimeout(() => {
+      if (promptText && promptText.textContent.includes('Curto-circuito')) {
+        if (interactionPrompt) interactionPrompt.classList.add('hidden');
+      }
+    }, 1800);
+    return;
+  }
 
   env.isLit = typeof forceState === 'boolean' ? forceState : !env.isLit;
   playSwitchSound(env.isLit);
@@ -383,68 +512,68 @@ function createWallSwitch(envId, x, y, z, rotationY, labelText) {
 // 1. Corredor Central (4 Luminárias de Teto)
 for (let x = -22; x <= 22; x += 11) {
   createCeilingLamp('corridor', x, WALL_HEIGHT - 0.05, 0, 0x38bdf8);
-  const pl = new THREE.PointLight(0x38bdf8, 12.0, 50);
+  const pl = new THREE.PointLight(0x38bdf8, 8.5, 30);
   pl.position.set(x, WALL_HEIGHT - 0.4, 0);
-  addLightToEnvironment('corridor', pl, 12.0);
+  addLightToEnvironment('corridor', pl, 8.5);
 }
 createWallSwitch('corridor', -2.5, 1.65, -3.32, 0, 'Luz do Corredor');
 
 // 2. Q.101 Suíte Presidencial
 createCeilingLamp('q101', -23.0, WALL_HEIGHT - 0.05, -13.8, 0xf59e0b);
 createCeilingLamp('q101', -14.0, WALL_HEIGHT - 0.05, -13.8, 0xf59e0b);
-const q101Light1 = new THREE.PointLight(0xf59e0b, 16.0, 60);
+const q101Light1 = new THREE.PointLight(0xf59e0b, 11.0, 36);
 q101Light1.position.set(-21.0, WALL_HEIGHT - 0.4, -13.8);
-addLightToEnvironment('q101', q101Light1, 16.0);
-const q101Light2 = new THREE.PointLight(0xf59e0b, 14.0, 55);
+addLightToEnvironment('q101', q101Light1, 11.0);
+const q101Light2 = new THREE.PointLight(0xf59e0b, 10.0, 34);
 q101Light2.position.set(-14.0, WALL_HEIGHT - 0.4, -13.8);
-addLightToEnvironment('q101', q101Light2, 14.0);
+addLightToEnvironment('q101', q101Light2, 10.0);
 createWallSwitch('q101', -13.5, 1.65, -3.88, Math.PI, 'Luz Q.101');
 
 // 3. Q.102 Banheiro Luxo
 createCeilingLamp('q102', -6.0, WALL_HEIGHT - 0.05, -13.8, 0x06b6d4);
-const q102Light = new THREE.PointLight(0x06b6d4, 15.0, 50);
+const q102Light = new THREE.PointLight(0x06b6d4, 10.5, 32);
 q102Light.position.set(-6.0, WALL_HEIGHT - 0.4, -13.8);
-addLightToEnvironment('q102', q102Light, 15.0);
+addLightToEnvironment('q102', q102Light, 10.5);
 createWallSwitch('q102', -1.5, 1.65, -3.88, Math.PI, 'Luz Q.102');
 
 // 4. Q.103 Tech Lab
 createCeilingLamp('q103', 7.0, WALL_HEIGHT - 0.05, -11.8, 0xa855f7);
-const q103Light1 = new THREE.PointLight(0xa855f7, 16.0, 60);
+const q103Light1 = new THREE.PointLight(0xa855f7, 11.0, 36);
 q103Light1.position.set(7.0, WALL_HEIGHT - 0.4, -11.8);
-addLightToEnvironment('q103', q103Light1, 16.0);
+addLightToEnvironment('q103', q103Light1, 11.0);
 createCeilingLamp('q103', 21.0, WALL_HEIGHT - 0.05, -16.0, 0x38bdf8);
-const q103Light2 = new THREE.PointLight(0x38bdf8, 15.0, 55);
+const q103Light2 = new THREE.PointLight(0x38bdf8, 10.5, 34);
 q103Light2.position.set(21.0, WALL_HEIGHT - 0.4, -16.0);
-addLightToEnvironment('q103', q103Light2, 15.0);
+addLightToEnvironment('q103', q103Light2, 10.5);
 createWallSwitch('q103', 14.5, 1.65, -3.88, Math.PI, 'Luz Q.103');
 
 // 5. Q.104 Suíte Botânica
 createCeilingLamp('q104', -24.0, WALL_HEIGHT - 0.05, 11.8, 0x84cc16);
 createCeilingLamp('q104', -16.0, WALL_HEIGHT - 0.05, 11.8, 0x84cc16);
-const q104Light1 = new THREE.PointLight(0x84cc16, 16.0, 60);
+const q104Light1 = new THREE.PointLight(0x84cc16, 11.0, 36);
 q104Light1.position.set(-22.0, WALL_HEIGHT - 0.4, 11.8);
-addLightToEnvironment('q104', q104Light1, 16.0);
-const q104Light2 = new THREE.PointLight(0x84cc16, 14.0, 55);
+addLightToEnvironment('q104', q104Light1, 11.0);
+const q104Light2 = new THREE.PointLight(0x84cc16, 10.0, 34);
 q104Light2.position.set(-16.0, WALL_HEIGHT - 0.4, 11.8);
-addLightToEnvironment('q104', q104Light2, 14.0);
+addLightToEnvironment('q104', q104Light2, 10.0);
 createWallSwitch('q104', -16.5, 1.65, 3.88, 0, 'Luz Q.104');
 
 // 6. Q.105 Lavabo
 createCeilingLamp('q105', -11.0, WALL_HEIGHT - 0.05, 11.8, 0xfef08a);
-const q105Light = new THREE.PointLight(0xfef08a, 14.0, 48);
+const q105Light = new THREE.PointLight(0xfef08a, 10.0, 32);
 q105Light.position.set(-11.0, WALL_HEIGHT - 0.4, 11.8);
-addLightToEnvironment('q105', q105Light, 14.0);
+addLightToEnvironment('q105', q105Light, 10.0);
 createWallSwitch('q105', -6.5, 1.65, 3.88, 0, 'Luz Q.105');
 
 // 7. Q.106 Câmara Testes
 createCeilingLamp('q106', 9.0, WALL_HEIGHT - 0.05, 12.8, 0xf8fafc);
 createCeilingLamp('q106', 22.0, WALL_HEIGHT - 0.05, 12.8, 0xf8fafc);
-const q106Light1 = new THREE.PointLight(0xf8fafc, 18.0, 65);
+const q106Light1 = new THREE.PointLight(0xf8fafc, 12.5, 38);
 q106Light1.position.set(9.0, WALL_HEIGHT - 0.4, 12.8);
-addLightToEnvironment('q106', q106Light1, 18.0);
-const q106Light2 = new THREE.PointLight(0xf8fafc, 16.0, 60);
+addLightToEnvironment('q106', q106Light1, 12.5);
+const q106Light2 = new THREE.PointLight(0xf8fafc, 11.5, 36);
 q106Light2.position.set(22.0, WALL_HEIGHT - 0.4, 12.8);
-addLightToEnvironment('q106', q106Light2, 16.0);
+addLightToEnvironment('q106', q106Light2, 11.5);
 createWallSwitch('q106', 18.5, 1.65, 3.88, 0, 'Luz Q.106');
 
 // --- TEXTURAS PROCEDIMENTAIS DE PISO ---
@@ -520,22 +649,40 @@ gridHelper.position.set(0, 0.005, 0);
 scene.add(gridHelper);
 
 // --- ESTRUTURA DE PAREDES COM ABERTURA REAL PARA AS PORTAS ---
-const wallMaterial = new THREE.MeshStandardMaterial({ color: 0x1e2638, roughness: 0.85, metalness: 0.1 });
-const trimMaterial = new THREE.MeshStandardMaterial({ color: 0x38bdf8, emissive: 0x0284c7, emissiveIntensity: 0.4 });
-
 const wallsGroup = new THREE.Group();
 const wallColliders = [];
+const allWallMeshes = [];
+const cameraRaycaster = new THREE.Raycaster();
 
 function createWallSegment(w, h, d, x, y, z, wallName) {
-  const wallMesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), wallMaterial);
+  const wallMat = new THREE.MeshStandardMaterial({
+    color: 0x1e2638,
+    roughness: 0.85,
+    metalness: 0.1,
+    transparent: true,
+    opacity: 1.0,
+  });
+  const wallMesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), wallMat);
   wallMesh.position.set(x, y, z);
   wallMesh.castShadow = true; wallMesh.receiveShadow = true;
+  wallMesh.userData = { isWall: true, wallName, targetOpacity: 1.0 };
   wallsGroup.add(wallMesh);
+  allWallMeshes.push(wallMesh);
 
   const trimHeight = 0.15;
-  const trim = new THREE.Mesh(new THREE.BoxGeometry(w === WALL_THICKNESS ? w + 0.04 : w, trimHeight, d === WALL_THICKNESS ? d + 0.04 : d), trimMaterial);
+  const trimMat = new THREE.MeshStandardMaterial({
+    color: 0x38bdf8,
+    emissive: 0x0284c7,
+    emissiveIntensity: 0.4,
+    transparent: true,
+    opacity: 1.0,
+  });
+  const trim = new THREE.Mesh(new THREE.BoxGeometry(w === WALL_THICKNESS ? w + 0.04 : w, trimHeight, d === WALL_THICKNESS ? d + 0.04 : d), trimMat);
   trim.position.set(x, trimHeight / 2, z);
+  trim.userData = { isWall: true, wallName, targetOpacity: 1.0, parentWall: wallMesh };
   wallsGroup.add(trim);
+  allWallMeshes.push(trim);
+  wallMesh.userData.trim = trim;
 
   wallColliders.push({
     minX: x - w / 2 - PLAYER_RADIUS,
@@ -578,6 +725,143 @@ createWallSegment(9.6, WALL_HEIGHT, WALL_THICKNESS, 6.8, WALL_HEIGHT / 2, 3.6, '
 createWallSegment(15.6, WALL_HEIGHT, WALL_THICKNESS, 22.2, WALL_HEIGHT / 2, 3.6, 'Parede Q106 Dir');
 
 scene.add(wallsGroup);
+
+// --- SALA DE TESTES (SANDBOX LAB) ---
+let isTestRoomMode = false;
+const testRoomGroup = new THREE.Group();
+const testRoomPuzzles = [];
+const testRoomDummies = [];
+const testRoomEnemies = [];
+
+function createTestRoom() {
+  const CENTER_X = 200;
+  const CENTER_Z = 200;
+  const ROOM_SIZE = 32;
+  const WALL_H = 5.5;
+
+  // 1. Chão com Grid Sci-Fi High-Tech
+  const floorGeo = new THREE.PlaneGeometry(ROOM_SIZE, ROOM_SIZE);
+  const floorMat = new THREE.MeshStandardMaterial({
+    color: 0x0f172a,
+    roughness: 0.4,
+    metalness: 0.6,
+  });
+  const floor = new THREE.Mesh(floorGeo, floorMat);
+  floor.rotation.x = -Math.PI / 2;
+  floor.position.set(CENTER_X, 0.01, CENTER_Z);
+  floor.receiveShadow = true;
+  testRoomGroup.add(floor);
+
+  // Grade luminosa de teste no chão
+  const grid = new THREE.GridHelper(ROOM_SIZE, 32, 0x38bdf8, 0x1e293b);
+  grid.position.set(CENTER_X, 0.02, CENTER_Z);
+  testRoomGroup.add(grid);
+
+  // 2. Paredes Perimetrais do Sandbox
+  const half = ROOM_SIZE / 2;
+  const wallThickness = 0.8;
+
+  const wallsDef = [
+    { name: 'TestRoom_WallN', minX: CENTER_X - half, maxX: CENTER_X + half, minZ: CENTER_Z - half - wallThickness / 2, maxZ: CENTER_Z - half + wallThickness / 2, w: ROOM_SIZE, d: wallThickness, x: CENTER_X, z: CENTER_Z - half },
+    { name: 'TestRoom_WallS', minX: CENTER_X - half, maxX: CENTER_X + half, minZ: CENTER_Z + half - wallThickness / 2, maxZ: CENTER_Z + half + wallThickness / 2, w: ROOM_SIZE, d: wallThickness, x: CENTER_X, z: CENTER_Z + half },
+    { name: 'TestRoom_WallW', minX: CENTER_X - half - wallThickness / 2, maxX: CENTER_X - half + wallThickness / 2, minZ: CENTER_Z - half, maxZ: CENTER_Z + half, w: wallThickness, d: ROOM_SIZE, x: CENTER_X - half, z: CENTER_Z },
+    { name: 'TestRoom_WallE', minX: CENTER_X + half - wallThickness / 2, maxX: CENTER_X + half + wallThickness / 2, minZ: CENTER_Z - half, maxZ: CENTER_Z + half, w: wallThickness, d: ROOM_SIZE, x: CENTER_X + half, z: CENTER_Z },
+  ];
+
+  wallsDef.forEach(w => {
+    const wallMat = new THREE.MeshStandardMaterial({
+      color: 0x1e293b,
+      roughness: 0.6,
+      metalness: 0.3,
+      transparent: true,
+      opacity: 1.0,
+    });
+    const geo = new THREE.BoxGeometry(w.w, WALL_H, w.d);
+    const mesh = new THREE.Mesh(geo, wallMat);
+    mesh.position.set(w.x, WALL_H / 2, w.z);
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    mesh.userData = { isWall: true, wallName: w.name, targetOpacity: 1.0 };
+    testRoomGroup.add(mesh);
+    allWallMeshes.push(mesh);
+
+    // Registra colisor de parede para o jogador não sair da sala de testes
+    wallColliders.push({
+      name: w.name,
+      minX: w.minX,
+      maxX: w.maxX,
+      minZ: w.minZ,
+      maxZ: w.maxZ,
+      disabled: false,
+    });
+  });
+
+  // 3. Iluminação do Laboratório de Testes (Limpa, brilhante e agradável)
+  const testAmbient = new THREE.AmbientLight(0xffffff, 0.45);
+  testRoomGroup.add(testAmbient);
+
+  const lightPositions = [
+    { x: CENTER_X - 8, y: 5.0, z: CENTER_Z - 8 },
+    { x: CENTER_X + 8, y: 5.0, z: CENTER_Z - 8 },
+    { x: CENTER_X - 8, y: 5.0, z: CENTER_Z + 8 },
+    { x: CENTER_X + 8, y: 5.0, z: CENTER_Z + 8 },
+  ];
+
+  lightPositions.forEach((lp) => {
+    const pLight = new THREE.PointLight(0x38bdf8, 1.8, 20);
+    pLight.position.set(lp.x, lp.y, lp.z);
+    pLight.castShadow = true;
+    testRoomGroup.add(pLight);
+
+    const bulbGeo = new THREE.CylinderGeometry(0.3, 0.3, 0.1, 16);
+    const bulbMat = new THREE.MeshBasicMaterial({ color: 0x38bdf8 });
+    const bulb = new THREE.Mesh(bulbGeo, bulbMat);
+    bulb.position.set(lp.x, 5.4, lp.z);
+    testRoomGroup.add(bulb);
+  });
+
+  // 4. Painel Holográfico Central / Stand de Testes
+  const standGeo = new THREE.CylinderGeometry(1.2, 1.4, 0.8, 16);
+  const standMat = new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.3, metalness: 0.8 });
+  const stand = new THREE.Mesh(standGeo, standMat);
+  stand.position.set(CENTER_X, 0.4, CENTER_Z - 6);
+  stand.castShadow = true;
+  stand.receiveShadow = true;
+  testRoomGroup.add(stand);
+
+  const standRing = new THREE.Mesh(new THREE.TorusGeometry(1.2, 0.05, 8, 24), new THREE.MeshBasicMaterial({ color: 0x38bdf8 }));
+  standRing.rotation.x = Math.PI / 2;
+  standRing.position.set(CENTER_X, 0.78, CENTER_Z - 6);
+  testRoomGroup.add(standRing);
+
+  // Placa Holográfica / Banner
+  const bannerCanvas = document.createElement('canvas');
+  bannerCanvas.width = 512;
+  bannerCanvas.height = 128;
+  const ctx = bannerCanvas.getContext('2d');
+  ctx.fillStyle = '#0f172a';
+  ctx.fillRect(0, 0, 512, 128);
+  ctx.strokeStyle = '#38bdf8';
+  ctx.lineWidth = 6;
+  ctx.strokeRect(6, 6, 500, 116);
+  ctx.fillStyle = '#38bdf8';
+  ctx.font = 'bold 36px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('🧪 SALA DE TESTES (SANDBOX)', 256, 55);
+  ctx.fillStyle = '#94a3b8';
+  ctx.font = '22px sans-serif';
+  ctx.fillText('Área para teste de mecânicas, armas e puzzles', 256, 95);
+
+  const bannerTex = new THREE.CanvasTexture(bannerCanvas);
+  const bannerGeo = new THREE.PlaneGeometry(6, 1.5);
+  const bannerMat = new THREE.MeshBasicMaterial({ map: bannerTex, transparent: true, side: THREE.DoubleSide });
+  const bannerMesh = new THREE.Mesh(bannerGeo, bannerMat);
+  bannerMesh.position.set(CENTER_X, 3.2, CENTER_Z - half + 0.5);
+  testRoomGroup.add(bannerMesh);
+
+  scene.add(testRoomGroup);
+}
+createTestRoom();
 
 // --- SISTEMA DE NÉVOA / OBSCURIDADE SOBRE QUARTOS TRANCADOS ---
 const roomFogObjects = {};
@@ -635,6 +919,75 @@ function clearRoomFog(envId) {
     fogObj.targetOpacity = 0.0;
   }
 }
+
+// --- SISTEMA DE NÉVOA RASTEIRA 3D (CREEPING GROUND MIST) ---
+function createMistTexture() {
+  const canvas = document.createElement('canvas');
+  canvas.width = 256;
+  canvas.height = 256;
+  const ctx = canvas.getContext('2d');
+  const grad = ctx.createRadialGradient(128, 128, 15, 128, 128, 120);
+  grad.addColorStop(0, 'rgba(56, 189, 248, 0.28)');
+  grad.addColorStop(0.35, 'rgba(30, 58, 138, 0.18)');
+  grad.addColorStop(0.75, 'rgba(15, 23, 42, 0.08)');
+  grad.addColorStop(1.0, 'rgba(0, 0, 0, 0)');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, 256, 256);
+  return new THREE.CanvasTexture(canvas);
+}
+
+const mistTexture = createMistTexture();
+const mistMaterial = new THREE.MeshBasicMaterial({
+  map: mistTexture,
+  transparent: true,
+  opacity: 0.70,
+  depthWrite: false,
+  blending: THREE.AdditiveBlending,
+  side: THREE.DoubleSide,
+});
+
+const groundMistPlanes = [];
+
+function createGroundMistZone(x, z, width, depth, count = 3) {
+  const zoneGroup = new THREE.Group();
+  zoneGroup.position.set(x, 0.2, z);
+
+  for (let i = 0; i < count; i++) {
+    const size = Math.max(width, depth) * (0.65 + Math.random() * 0.35);
+    const plane = new THREE.Mesh(new THREE.PlaneGeometry(size, size), mistMaterial);
+    plane.rotation.x = -Math.PI / 2;
+    plane.position.set(
+      (Math.random() - 0.5) * (width * 0.45),
+      0.08 + (i * 0.06),
+      (Math.random() - 0.5) * (depth * 0.45)
+    );
+    plane.userData = {
+      baseY: plane.position.y,
+      rotSpeed: (Math.random() - 0.5) * 0.06,
+      floatSpeed: 0.7 + Math.random() * 0.5,
+      floatOffset: Math.random() * Math.PI * 2,
+    };
+    zoneGroup.add(plane);
+    groundMistPlanes.push(plane);
+  }
+
+  scene.add(zoneGroup);
+}
+
+// 1. Névoa Rasteira no Corredor Central (3 trechos)
+createGroundMistZone(-18, 0, 18, 6.5, 4);
+createGroundMistZone(0, 0, 18, 6.5, 4);
+createGroundMistZone(18, 0, 18, 6.5, 4);
+
+// 2. Névoa Rasteira nos Quartos Norte
+createGroundMistZone(-20.1, -13.8, 18, 18, 4); // Q.101 Suíte Presidencial
+createGroundMistZone(-4.1, -13.8, 11, 18, 3);  // Q.102 Banheiro Luxo
+createGroundMistZone(16.0, -13.8, 26, 18, 4);  // Q.103 Tech Lab
+
+// 3. Névoa Rasteira nos Quartos Sul
+createGroundMistZone(-22.0, 13.8, 15, 18, 4);  // Q.104 Suíte Botânica
+createGroundMistZone(-6.0, 13.8, 15, 18, 3);   // Q.105 Lavabo
+createGroundMistZone(16.0, 13.8, 26, 18, 5);   // Q.106 Câmara Testes (Chefe)
 
 // --- SISTEMA DE INVENTÁRIO DE CHAVES ---
 const acquiredKeys = new Set();
@@ -796,9 +1149,14 @@ function damagePlayer(amount, enemyName = 'Criatura') {
   if (isPlayerDead || invulnerableTimer > 0) return;
 
   playerHealth = Math.max(0, playerHealth - amount);
-  invulnerableTimer = 1.0;
+  invulnerableTimer = 0.8;
 
   playHurtSound();
+
+  // Partículas 3D abundantes de sangue espirrando do jogador
+  const playerHitPos = playerGroup.position.clone().add(new THREE.Vector3(0, 0.9, 0));
+  const sprayDir = new THREE.Vector3((Math.random() - 0.5) * 0.6, 1.0, (Math.random() - 0.5) * 0.6).normalize();
+  spawnBloodSplatter(playerHitPos, sprayDir, 35, false);
 
   // Flash vermelho na tela
   const dmgOverlay = document.getElementById('screen-damage-overlay');
@@ -814,8 +1172,14 @@ function damagePlayer(amount, enemyName = 'Criatura') {
   if (playerHealth <= 0) {
     isPlayerDead = true;
     playZombieDeathSound(false);
-    const gameOverModal = document.getElementById('game-over-modal');
-    if (gameOverModal) gameOverModal.classList.remove('hidden');
+    playPlayerAnim('death', 0.2);
+    stopGameplayBGM();
+    // Aguarda 5 segundos para a animação de morte completa do personagem antes do Game Over
+    setTimeout(() => {
+      const gameOverModal = document.getElementById('game-over-modal');
+      if (gameOverModal) gameOverModal.classList.remove('hidden');
+      playMenuBGM();
+    }, 5000);
   }
 }
 
@@ -895,10 +1259,10 @@ const weaponInventory = {
     id: 'revolver',
     name: 'Revólver 🔫',
     badgeId: 'badge-weapon-revolver',
-    isAcquired: true,
+    isAcquired: false,
     maxMag: 6,
-    loadedAmmo: 6,
-    reserveAmmo: 999,
+    loadedAmmo: 0,
+    reserveAmmo: 0,
     color: 0x94a3b8,
     mesh: null,
   },
@@ -906,10 +1270,10 @@ const weaponInventory = {
     id: 'shotgun',
     name: 'Shotgun 💥',
     badgeId: 'badge-weapon-shotgun',
-    isAcquired: true,
+    isAcquired: false,
     maxMag: 4,
-    loadedAmmo: 4,
-    reserveAmmo: 999,
+    loadedAmmo: 0,
+    reserveAmmo: 0,
     color: 0xf97316,
     mesh: null,
   },
@@ -1076,20 +1440,20 @@ function updateWeaponsUI() {
       const isEmpty = wRev.loadedAmmo === 0;
       permHud.className = `permanent-weapon-hud glass-panel weapon-revolver-active ${isEmpty ? 'ammo-empty' : ''}`;
       if (permIcon) permIcon.textContent = '🔫';
-      if (permStatus) permStatus.textContent = isEmpty ? 'Pente Vazio (R / [RB])' : 'Arma Pronta (G / [RT])';
+      if (permStatus) permStatus.textContent = isEmpty ? 'Pente Vazio (R / [RB])' : (isAiming ? 'Mirando / Pronta ([RT])' : 'Armada (Segure [LT] / RMB)');
       if (permName) permName.textContent = 'Magnum .357';
       if (permAmmoMag) permAmmoMag.textContent = `${wRev.loadedAmmo}`;
       if (permAmmoRes) permAmmoRes.textContent = `${wRev.reserveAmmo}`;
-      if (permAmmoLabel) permAmmoLabel.textContent = isEmpty ? 'Pressione R / [RB] p/ Recarregar' : 'G / [RT]: Atirar • R: Recarregar';
+      if (permAmmoLabel) permAmmoLabel.textContent = isEmpty ? 'Pressione R / [RB] p/ Recarregar' : '[LT]: Mirar • [RT]: Atirar • [RB]: Recarregar';
     } else if (equippedWeaponId === 'shotgun') {
       const isEmpty = wSht.loadedAmmo === 0;
       permHud.className = `permanent-weapon-hud glass-panel weapon-shotgun-active ${isEmpty ? 'ammo-empty' : ''}`;
       if (permIcon) permIcon.textContent = '💥';
-      if (permStatus) permStatus.textContent = isEmpty ? 'Pente Vazio (R / [RB])' : 'Arma Pronta (G / [RT])';
+      if (permStatus) permStatus.textContent = isEmpty ? 'Pente Vazio (R / [RB])' : (isAiming ? 'Mirando / Pronta ([RT])' : 'Armada (Segure [LT] / RMB)');
       if (permName) permName.textContent = 'Shotgun 12G';
       if (permAmmoMag) permAmmoMag.textContent = `${wSht.loadedAmmo}`;
       if (permAmmoRes) permAmmoRes.textContent = `${wSht.reserveAmmo}`;
-      if (permAmmoLabel) permAmmoLabel.textContent = isEmpty ? 'Pressione R / [RB] p/ Recarregar' : 'G / [RT]: Atirar • R: Recarregar';
+      if (permAmmoLabel) permAmmoLabel.textContent = isEmpty ? 'Pressione R / [RB] p/ Recarregar' : '[LT]: Mirar • [RT]: Atirar • [RB]: Recarregar';
     } else {
       permHud.className = 'permanent-weapon-hud glass-panel weapon-unarmed';
       if (permIcon) permIcon.textContent = '🖐️';
@@ -1099,7 +1463,7 @@ function updateWeaponsUI() {
       if (permAmmoRes) permAmmoRes.textContent = '--';
       if (permAmmoLabel) {
         if (wRev.isAcquired || wSht.isAcquired) {
-          permAmmoLabel.textContent = '1/2 / D-Pad: Equipar • G: Atirar';
+          permAmmoLabel.textContent = '1/2 / D-Pad: Equipar • [LT]+[RT]: Atirar';
         } else {
           permAmmoLabel.textContent = 'Encontre armas nos quartos';
         }
@@ -1219,7 +1583,7 @@ function updateDifficultyUI() {
 }
 
 // Spawns dos Inimigos
-function createEnemy(id, name, type, x, y, z, baseHp, baseSpeed, baseDamage, isBoss, targetRoom) {
+function createEnemy(id, name, type, x, y, z, baseHp, baseSpeed, baseDamage, isBoss, targetRoom, modelKey = (isBoss ? 'enemy_boss' : 'enemy1')) {
   const enemyGroup = new THREE.Group();
   enemyGroup.position.set(x, isBoss ? y + 0.3 : y, z);
 
@@ -1244,8 +1608,9 @@ function createEnemy(id, name, type, x, y, z, baseHp, baseSpeed, baseDamage, isB
   });
 
   const hitMeshes = [];
+  const placeholderMeshes = [];
 
-  // Tronco
+  // Tronco placeholder
   const torsoGeo = new THREE.BoxGeometry(isBoss ? 1.0 : 0.65, isBoss ? 1.2 : 0.75, isBoss ? 0.55 : 0.38);
   const torso = new THREE.Mesh(torsoGeo, clothesMat);
   torso.position.y = 0.25;
@@ -1254,8 +1619,9 @@ function createEnemy(id, name, type, x, y, z, baseHp, baseSpeed, baseDamage, isB
   torso.userData = { enemyId: id };
   enemyGroup.add(torso);
   hitMeshes.push(torso);
+  placeholderMeshes.push(torso);
 
-  // Cabeça
+  // Cabeça placeholder
   const headGeo = new THREE.BoxGeometry(isBoss ? 0.65 : 0.42, isBoss ? 0.65 : 0.42, isBoss ? 0.65 : 0.42);
   const head = new THREE.Mesh(headGeo, skinMat);
   head.position.y = isBoss ? 1.15 : 0.82;
@@ -1264,19 +1630,21 @@ function createEnemy(id, name, type, x, y, z, baseHp, baseSpeed, baseDamage, isB
   head.userData = { enemyId: id };
   enemyGroup.add(head);
   hitMeshes.push(head);
+  placeholderMeshes.push(head);
 
-  // Olhos Incandescentes
+  // Olhos Incandescentes placeholder
   const eyeLeft = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.06, 0.05), eyeMat);
   eyeLeft.position.set(-0.11, 0.85, 0.23);
   enemyGroup.add(eyeLeft);
+  placeholderMeshes.push(eyeLeft);
 
   const eyeRight = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.06, 0.05), eyeMat);
   eyeRight.position.set(0.11, 0.85, 0.23);
   enemyGroup.add(eyeRight);
+  placeholderMeshes.push(eyeRight);
 
-  // Braços
+  // Braços placeholder
   const armGeo = new THREE.BoxGeometry(0.16, 0.65, 0.16);
-
   const leftArm = new THREE.Mesh(armGeo, skinMat);
   leftArm.position.set(-0.38, 0.2, 0.28);
   leftArm.rotation.x = -Math.PI / 3;
@@ -1284,6 +1652,7 @@ function createEnemy(id, name, type, x, y, z, baseHp, baseSpeed, baseDamage, isB
   leftArm.userData = { enemyId: id };
   enemyGroup.add(leftArm);
   hitMeshes.push(leftArm);
+  placeholderMeshes.push(leftArm);
 
   const rightArm = new THREE.Mesh(armGeo, skinMat);
   rightArm.position.set(0.38, 0.2, 0.28);
@@ -1292,8 +1661,9 @@ function createEnemy(id, name, type, x, y, z, baseHp, baseSpeed, baseDamage, isB
   rightArm.userData = { enemyId: id };
   enemyGroup.add(rightArm);
   hitMeshes.push(rightArm);
+  placeholderMeshes.push(rightArm);
 
-  // Pernas
+  // Pernas placeholder
   const legGeo = new THREE.BoxGeometry(0.2, 0.65, 0.2);
   const leftLeg = new THREE.Mesh(legGeo, clothesMat);
   leftLeg.position.set(-0.16, -0.45, 0);
@@ -1301,6 +1671,7 @@ function createEnemy(id, name, type, x, y, z, baseHp, baseSpeed, baseDamage, isB
   leftLeg.userData = { enemyId: id };
   enemyGroup.add(leftLeg);
   hitMeshes.push(leftLeg);
+  placeholderMeshes.push(leftLeg);
 
   const rightLeg = new THREE.Mesh(legGeo, clothesMat);
   rightLeg.position.set(0.16, -0.45, 0);
@@ -1308,31 +1679,27 @@ function createEnemy(id, name, type, x, y, z, baseHp, baseSpeed, baseDamage, isB
   rightLeg.userData = { enemyId: id };
   enemyGroup.add(rightLeg);
   hitMeshes.push(rightLeg);
+  placeholderMeshes.push(rightLeg);
 
-  // Hitbox de tiro generosa para precisão de combate
+  // Hitbox de tiro generosa para precisão de combate (+10% ajustada)
   const hitColMat = new THREE.MeshBasicMaterial({ visible: false, wireframe: true });
-  const hitColGeo = new THREE.CylinderGeometry(isBoss ? 1.4 : 0.8, isBoss ? 1.4 : 0.8, isBoss ? 3.2 : 2.0, 12);
+  const hitColGeo = new THREE.CylinderGeometry(isBoss ? 1.75 : 0.95, isBoss ? 1.75 : 0.95, isBoss ? 3.7 : 2.4, 12);
   const hitCollider = new THREE.Mesh(hitColGeo, hitColMat);
   hitCollider.position.set(0, isBoss ? 1.2 : 0.7, 0);
   hitCollider.userData = { enemyId: id };
   enemyGroup.add(hitCollider);
   hitMeshes.push(hitCollider);
 
-  // Detalhes extras se for Chefe (Ombreiras / Espinhos / Aura)
+  // Detalhes extras se for Chefe (Aura / Chifres)
   if (isBoss) {
     const hornMat = new THREE.MeshStandardMaterial({ color: 0x991b1b, metalness: 0.8, roughness: 0.2, emissive: 0x7f1d1d, emissiveIntensity: 0.5 });
     const hornL = new THREE.Mesh(new THREE.ConeGeometry(0.09, 0.35, 8), hornMat);
     hornL.position.set(-0.18, 1.15, 0.05); hornL.rotation.z = -0.3; enemyGroup.add(hornL);
+    placeholderMeshes.push(hornL);
 
     const hornR = new THREE.Mesh(new THREE.ConeGeometry(0.09, 0.35, 8), hornMat);
     hornR.position.set(0.18, 1.15, 0.05); hornR.rotation.z = 0.3; enemyGroup.add(hornR);
-
-    const shoulderMat = new THREE.MeshStandardMaterial({ color: 0xd97706, metalness: 0.9, roughness: 0.2 });
-    const shoulderL = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.25, 0.25), shoulderMat);
-    shoulderL.position.set(-0.45, 0.55, 0); enemyGroup.add(shoulderL);
-
-    const shoulderR = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.25, 0.25), shoulderMat);
-    shoulderR.position.set(0.45, 0.55, 0); enemyGroup.add(shoulderR);
+    placeholderMeshes.push(hornR);
   }
 
   // Luz incandescente do monstro
@@ -1350,6 +1717,7 @@ function createEnemy(id, name, type, x, y, z, baseHp, baseSpeed, baseDamage, isB
     id,
     name,
     type,
+    modelKey,
     x, y, z,
     initialX: x,
     initialY: isBoss ? y + 0.3 : y,
@@ -1367,6 +1735,7 @@ function createEnemy(id, name, type, x, y, z, baseHp, baseSpeed, baseDamage, isB
     skinMat,
     clothesMat,
     hitMeshes,
+    placeholderMeshes,
     torso,
     head,
     leftArm,
@@ -1380,34 +1749,201 @@ function createEnemy(id, name, type, x, y, z, baseHp, baseSpeed, baseDamage, isB
     attackCooldown: 0,
     walkCycle: 0,
     isAggro: false,
-    groanTimer: Math.random() * 5 + 3,
+    hasMoved: false,
+    groanTimer: Math.random() * 4 + 2,
+    modelInstance: null,
+    mixer: null,
+    actions: {},
+    activeAction: null,
+    currentActionName: 'idle',
+    materials: [],
   };
 
   activeEnemies.push(enemyObj);
   return enemyObj;
 }
 
-// Spawns dos Inimigos nos Quartos
+// Spawns dos Inimigos nos Quartos com distribuição dos modelos
 // Q.101: 1 Zumbi lento (Jogador inicia desarmado, precisa desviar e pegar a chave)
-createEnemy('enemy_101', 'Zumbi Andarilho', 'walker', -23.0, 1.0, -8.0, 70, 2.1, 20, false, 'q101');
+createEnemy('enemy_101', 'Zumbi Andarilho', 'walker', -23.0, 1.0, -8.0, 70, 2.1, 20, false, 'q101', 'enemy1');
 
 // Q.102: 1 Zumbi (Combate inicial com Revólver recém-obtido)
-createEnemy('enemy_102', 'Lurker Mutante', 'walker', -6.0, 1.0, -10.0, 85, 2.4, 22, false, 'q102');
+createEnemy('enemy_102', 'Lurker Mutante', 'walker', -6.0, 1.0, -10.0, 85, 2.4, 22, false, 'q102', 'enemy2');
 
-// Q.103: 2 Zumbis (Combate tático no Tech Lab)
-createEnemy('enemy_103_1', 'Cyborg Infectado Alpha', 'cyber', 18.0, 1.0, -16.0, 95, 2.5, 25, false, 'q103');
-createEnemy('enemy_103_2', 'Cyborg Infectado Beta', 'cyber', 24.0, 1.0, -8.0, 95, 2.6, 25, false, 'q103');
+// Q.103: 3 Zumbis (Combate tático no Tech Lab)
+createEnemy('enemy_103_1', 'Cyborg Infectado Alpha', 'cyber', 18.0, 1.0, -16.0, 95, 2.5, 25, false, 'q103', 'enemy3');
+createEnemy('enemy_103_2', 'Cyborg Infectado Beta', 'cyber', 24.0, 1.0, -8.0, 95, 2.6, 25, false, 'q103', 'enemy1');
+createEnemy('enemy_103_3', 'Cyborg Infectado Gamma', 'cyber', 21.0, 1.0, -12.0, 95, 2.5, 25, false, 'q103', 'enemy2');
 
 // Q.104: 2 Stalkers Ágeis (Recompensa da Shotgun)
-createEnemy('enemy_104_1', 'Parasita Botânico Alpha', 'stalker', -24.0, 1.0, 16.0, 110, 3.2, 28, false, 'q104');
-createEnemy('enemy_104_2', 'Parasita Botânico Beta', 'stalker', -18.0, 1.0, 8.0, 110, 3.0, 28, false, 'q104');
+createEnemy('enemy_104_1', 'Parasita Botânico Alpha', 'stalker', -24.0, 1.0, 16.0, 110, 3.2, 28, false, 'q104', 'enemy2');
+createEnemy('enemy_104_2', 'Parasita Botânico Beta', 'stalker', -18.0, 1.0, 8.0, 110, 3.0, 28, false, 'q104', 'enemy3');
 
-// Q.105: 2 Stalkers Fortes (Desafio pré-chefe)
-createEnemy('enemy_105_1', 'Sombra Abissal Alpha', 'stalker', -3.0, 1.0, 16.0, 115, 3.0, 30, false, 'q105');
-createEnemy('enemy_105_2', 'Sombra Abissal Beta', 'stalker', -8.0, 1.0, 10.0, 115, 3.2, 30, false, 'q105');
+// Q.105: 4 Stalkers Fortes (Desafio pré-chefe no Lavabo de Serviço)
+createEnemy('enemy_105_1', 'Sombra Abissal Alpha', 'stalker', -3.0, 1.0, 16.0, 115, 3.0, 30, false, 'q105', 'enemy1');
+createEnemy('enemy_105_2', 'Sombra Abissal Beta', 'stalker', -8.0, 1.0, 10.0, 115, 3.2, 30, false, 'q105', 'enemy2');
+createEnemy('enemy_105_3', 'Sombra Abissal Gamma', 'stalker', -5.5, 1.0, 14.0, 115, 3.0, 30, false, 'q105', 'enemy3');
+createEnemy('enemy_105_4', 'Sombra Abissal Delta', 'stalker', -9.5, 1.0, 16.0, 115, 3.1, 30, false, 'q105', 'enemy1');
 
-// Q.106: 1 CHEFE ("Guardião da Câmara") - 450 HP, Drop da Chave Mestre 👑
-createEnemy('boss_106', 'Guardião da Câmara 👹', 'boss', 16.0, 1.5, 12.0, 450, 2.8, 40, true, 'q106');
+// Q.106: 1 CHEFE ("Guardião da Câmara") - 450 HP, Drop da Chave Mestre 👑 (Boss anda mais devagar: baseSpeed 1.4)
+createEnemy('boss_106', 'Guardião da Câmara 👹', 'boss', 16.0, 1.5, 12.0, 450, 1.4, 40, true, 'q106', 'enemy_boss');
+
+// --- SISTEMA DE ANIMAÇÃO E MODELAGEM 3D DOS INIMIGOS E BOSS ---
+function setupAllEnemies() {
+  const enemyAnimNames = ['idle', 'walk', 'run', 'attack', 'death', 'dying', 'biting', 'scream'];
+
+  activeEnemies.forEach(enemy => {
+    const modelKey = enemy.modelKey || (enemy.isBoss ? 'enemy_boss' : 'enemy1');
+    const baseModel = assetManager.models[modelKey];
+    if (!baseModel) {
+      console.warn(`Modelo do inimigo não encontrado para a chave: ${modelKey}`);
+      return;
+    }
+
+    // Clona o modelo com esqueleto completo usando SkeletonUtils
+    const enemyInstance = SkeletonUtils.clone(baseModel);
+
+    // Configura escala dos zumbis reduzida em 10% (0.0253 -> 0.0228)
+    const scale = enemy.isBoss ? 0.035 : 0.0228;
+    enemyInstance.scale.set(scale, scale, scale);
+    enemyInstance.position.set(0, -1.0, 0);
+    enemyInstance.rotation.set(0, 0, 0);
+
+    const enemyMats = [];
+
+    enemyInstance.traverse(child => {
+      if (child.isMesh) {
+        child.castShadow = true;
+        child.receiveShadow = true;
+        child.userData = { enemyId: enemy.id };
+        enemy.hitMeshes.push(child);
+
+        // Se o material for clonado / instanciado, armazena para efeito de hit flash
+        if (child.material) {
+          if (Array.isArray(child.material)) {
+            child.material.forEach(m => enemyMats.push(m));
+          } else {
+            enemyMats.push(child.material);
+          }
+        }
+      }
+
+      // Normalização de nomes de ossos Mixamo
+      if (child.isBone && child.name) {
+        child.name = child.name.replace(/.*mixamorig/g, 'mixamorig').replace(/mixamorig:/g, 'mixamorig');
+        if (!child.name.startsWith('mixamorig')) {
+          child.name = 'mixamorig' + child.name.charAt(0).toUpperCase() + child.name.slice(1);
+        }
+      }
+    });
+
+    enemy.modelInstance = enemyInstance;
+    enemy.materials = enemyMats;
+    enemy.group.add(enemyInstance);
+
+    // Remove os blocos geométricos placeholder antigos
+    if (enemy.placeholderMeshes) {
+      enemy.placeholderMeshes.forEach(m => {
+        if (m.parent) m.parent.remove(m);
+      });
+    }
+
+    // Configura AnimationMixer para o modelo FBX
+    const mixer = new THREE.AnimationMixer(enemyInstance);
+    const actions = {};
+
+    enemyAnimNames.forEach(name => {
+      const animKey = 'enemy_' + name;
+      const clip = assetManager.getAnimation(animKey);
+      if (clip && clip.tracks) {
+        const clipClone = clip.clone();
+        clipClone.tracks.forEach(track => {
+          if (track && track.name) {
+            track.name = track.name.replace(/.*mixamorig/g, 'mixamorig').replace(/mixamorig:/g, 'mixamorig');
+
+            // Trava X e Z dos quadris para neutralizar deslocamento de root-motion e evitar efeito de deslizar no chão
+            if (['walk', 'run', 'idle'].includes(name) && track.name.includes('Hips.position')) {
+              const values = track.values;
+              const initialX = values[0] || 0;
+              const initialZ = values[2] || 0;
+              for (let i = 0; i < values.length; i += 3) {
+                values[i] = initialX;
+                values[i + 2] = initialZ;
+              }
+            }
+          }
+        });
+
+        const action = mixer.clipAction(clipClone);
+        if (['attack', 'death', 'dying', 'scream', 'biting'].includes(name)) {
+          action.setLoop(THREE.LoopOnce);
+          action.clampWhenFinished = true;
+        }
+
+        // Se for o chefe, desacelera o passo da caminhada para parecer mais pesado e imponente
+        if (enemy.isBoss && name === 'walk') {
+          action.timeScale = 0.75;
+        } else if (enemy.isBoss && name === 'attack') {
+          action.timeScale = 0.85;
+        }
+
+        actions[name] = action;
+      }
+    });
+
+    enemy.mixer = mixer;
+    enemy.actions = actions;
+
+    // Inicia na animação de idle
+    if (actions['idle']) {
+      actions['idle'].play();
+      enemy.activeAction = actions['idle'];
+      enemy.currentActionName = 'idle';
+    }
+  });
+
+  console.log('Modelos FBX e animações dos inimigos e do chefe configurados com sucesso!');
+}
+
+function playEnemyAnim(enemy, animName, duration = 0.2) {
+  if (!enemy || !enemy.mixer || !enemy.actions) return;
+
+  let targetAction = enemy.actions[animName];
+  // Fallbacks úteis
+  if (!targetAction && animName === 'run') targetAction = enemy.actions['walk'];
+  if (!targetAction && animName === 'dying') targetAction = enemy.actions['death'];
+  if (!targetAction) targetAction = enemy.actions['idle'];
+  if (!targetAction) return;
+
+  // Ajusta a velocidade de reprodução sincronizada com a velocidade de deslocamento do inimigo (evita deslize)
+  if (animName === 'walk') {
+    targetAction.timeScale = enemy.isBoss ? 0.75 : Math.max(0.75, enemy.speed / 2.2);
+  } else if (animName === 'run') {
+    targetAction.timeScale = Math.max(0.9, enemy.speed / 2.6);
+  }
+
+  // Não cancela animação de morte se o inimigo já morreu
+  if (enemy.isDead && (enemy.currentActionName === 'death' || enemy.currentActionName === 'dying') && animName !== 'death' && animName !== 'dying') {
+    return;
+  }
+
+  // Não interrompe o golpe de ataque enquanto ele estiver sendo executado (a menos que o inimigo morra)
+  if (enemy.currentActionName === 'attack' && enemy.activeAction && enemy.activeAction.isRunning() && animName !== 'death' && animName !== 'dying') {
+    return;
+  }
+
+  if (enemy.currentActionName === animName && enemy.activeAction && enemy.activeAction.isRunning()) {
+    return;
+  }
+
+  targetAction.reset().fadeIn(duration).play();
+  if (enemy.activeAction && enemy.activeAction !== targetAction) {
+    enemy.activeAction.fadeOut(duration);
+  }
+
+  enemy.activeAction = targetAction;
+  enemy.currentActionName = animName;
+}
 
 function updateBossHealthUI() {
   const bossContainer = document.getElementById('boss-health-container');
@@ -1417,15 +1953,14 @@ function updateBossHealthUI() {
 
   if (!bossContainer || !boss) return;
 
-  if (boss.isDead) {
+  if (boss.isDead || !isGameStarted) {
     bossContainer.classList.add('hidden');
     return;
   }
 
-  const currentRoom = getRoomIdAtPosition(playerGroup.position.x, playerGroup.position.z);
-
-  // SÓ EXIBE O CHEFE QUANDO O JOGADOR ESTIVER REALMENTE DENTRO DO Q.106
-  if (currentRoom === 'q106') {
+  // A barra de vida do chefe só aparece quando ele for ativado (começar a perseguir / entrar em combate)
+  // e permanece visível na tela mesmo se o jogador sair da sala até que o chefe seja derrotado!
+  if (boss.isAggro || boss.hasMoved || boss.hp < boss.maxHp) {
     bossContainer.classList.remove('hidden');
     const pct = Math.max(0, Math.min(100, (boss.hp / boss.maxHp) * 100));
     if (bossFill) bossFill.style.width = `${pct}%`;
@@ -1435,14 +1970,147 @@ function updateBossHealthUI() {
   }
 }
 
+// --- SISTEMA DE PARTÍCULAS 3D DE SANGUE (BLOOD SPLATTER) ---
+const MAX_BLOOD_PARTICLES = 300;
+const bloodGeo = new THREE.DodecahedronGeometry(0.045, 0);
+const bloodMat = new THREE.MeshStandardMaterial({
+  color: 0x4a0002,
+  emissive: 0x1f0001,
+  emissiveIntensity: 0.25,
+  roughness: 0.2,
+  metalness: 0.15,
+});
+const bloodInstancedMesh = new THREE.InstancedMesh(bloodGeo, bloodMat, MAX_BLOOD_PARTICLES);
+bloodInstancedMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+bloodInstancedMesh.frustumCulled = false; // Garante renderização das partículas em qualquer ângulo da câmera
+scene.add(bloodInstancedMesh);
+
+const bloodDummyMatrix = new THREE.Matrix4();
+const bloodDummyPos = new THREE.Vector3();
+const bloodDummyQuat = new THREE.Quaternion();
+const bloodDummyScale = new THREE.Vector3();
+
+const bloodParticlesPool = [];
+for (let i = 0; i < MAX_BLOOD_PARTICLES; i++) {
+  bloodParticlesPool.push({
+    active: false,
+    pos: new THREE.Vector3(0, -100, 0),
+    vel: new THREE.Vector3(),
+    baseScale: 1.0,
+    life: 0,
+    maxLife: 1.0,
+  });
+  bloodDummyMatrix.makeTranslation(0, -100, 0);
+  bloodInstancedMesh.setMatrixAt(i, bloodDummyMatrix);
+}
+bloodInstancedMesh.instanceMatrix.needsUpdate = true;
+
+function spawnBloodSplatter(origin, direction, count = 24, isBig = false) {
+  let spawned = 0;
+  const targetCount = isBig ? Math.round(count * 1.5) : count;
+
+  for (let i = 0; i < MAX_BLOOD_PARTICLES; i++) {
+    const p = bloodParticlesPool[i];
+    if (!p.active) {
+      p.active = true;
+      p.pos.copy(origin).add(new THREE.Vector3(
+        (Math.random() - 0.5) * 0.14,
+        (Math.random() - 0.5) * 0.14,
+        (Math.random() - 0.5) * 0.14
+      ));
+
+      const spreadX = (Math.random() - 0.5) * 0.75;
+      const spreadY = (Math.random() * 0.5) + 0.15;
+      const spreadZ = (Math.random() - 0.5) * 0.75;
+
+      const sprayDir = direction.clone().multiplyScalar(0.6).add(new THREE.Vector3(spreadX, spreadY, spreadZ)).normalize();
+      const speed = (Math.random() * 1.6 + 0.9) * (isBig ? 1.3 : 1.0);
+      p.vel.copy(sprayDir).multiplyScalar(speed);
+
+      p.baseScale = (Math.random() * 0.5 + 0.75) * (isBig ? 1.35 : 1.0);
+      p.maxLife = Math.random() * 0.45 + 0.75;
+      p.life = p.maxLife;
+
+      spawned++;
+      if (spawned >= targetCount) break;
+    }
+  }
+}
+
+function updateBloodParticles(delta) {
+  let needsUpdate = false;
+
+  for (let i = 0; i < MAX_BLOOD_PARTICLES; i++) {
+    const p = bloodParticlesPool[i];
+    if (p.active) {
+      needsUpdate = true;
+      p.life -= delta;
+
+      if (p.life <= 0) {
+        p.active = false;
+        p.pos.set(0, -100, 0);
+        bloodDummyMatrix.makeTranslation(0, -100, 0);
+        bloodInstancedMesh.setMatrixAt(i, bloodDummyMatrix);
+        continue;
+      }
+
+      // Gravidade e movimento balístico contido
+      p.vel.y -= 14.0 * delta;
+      p.pos.addScaledVector(p.vel, delta);
+
+      // Colisão com o piso
+      if (p.pos.y <= 0.04) {
+        p.pos.y = 0.04;
+        p.vel.set(0, 0, 0);
+      }
+
+      const lifeRatio = Math.max(0, p.life / p.maxLife);
+      const currentScale = p.baseScale * (lifeRatio > 0.25 ? 1.0 : lifeRatio / 0.25);
+
+      bloodDummyPos.copy(p.pos);
+      if (p.pos.y <= 0.05) {
+        bloodDummyScale.set(currentScale * 1.3, currentScale * 0.18, currentScale * 1.3);
+      } else {
+        bloodDummyScale.set(currentScale, currentScale, currentScale);
+      }
+      bloodDummyMatrix.compose(bloodDummyPos, bloodDummyQuat, bloodDummyScale);
+      bloodInstancedMesh.setMatrixAt(i, bloodDummyMatrix);
+    }
+  }
+
+  if (needsUpdate) {
+    bloodInstancedMesh.instanceMatrix.needsUpdate = true;
+  }
+}
+
 function fireActiveWeapon() {
   if (isPlayerDead || !equippedWeaponId) return;
+
+  // Exige que o jogador esteja armando/mirando (com LT ou Botão Direito) para disparar
+  if (!isAiming) {
+    if (interactionPrompt) interactionPrompt.classList.remove('hidden');
+    if (promptText) promptText.textContent = 'Segure [LT] ou Botão Direito do mouse para mirar antes de atirar! 🎯';
+    setTimeout(() => {
+      if (promptText && promptText.textContent.includes('mirar antes de atirar')) {
+        if (interactionPrompt) interactionPrompt.classList.add('hidden');
+      }
+    }, 1500);
+    return;
+  }
 
   const weapon = weaponInventory[equippedWeaponId];
   if (weapon.loadedAmmo > 0) {
     weapon.loadedAmmo--;
     playGunshotSound(equippedWeaponId);
-    playPlayerAnim('shoot', 0.1);
+
+    // Efeito de recuo na animação de disparo
+    if (equippedWeaponId === 'revolver' && playerActions['shoot']) {
+      playerActions['shoot'].reset().play();
+    } else if (equippedWeaponId === 'shotgun' && playerActions['rifle_shoot']) {
+      playerActions['rifle_shoot'].reset().play();
+    } else {
+      playPlayerAnim('shoot', 0.05);
+    }
 
     // Dano da arma
     const damage = equippedWeaponId === 'shotgun' ? 90 : 35;
@@ -1517,17 +2185,22 @@ function fireActiveWeapon() {
 
     // Processa o acerto
     if (hitEnemy) {
-      // Efeito de impacto de sangue
+      // Efeito de impacto de sangue e luz
       combatImpactLight.position.copy(hitPoint || hitEnemy.group.position);
-      combatImpactLight.color.setHex(0xef4444);
-      combatImpactLight.intensity = 7.0;
-      setTimeout(() => { combatImpactLight.intensity = 0.0; }, 120);
+      combatImpactLight.color.setHex(0x550005);
+      combatImpactLight.intensity = 2.5;
+      setTimeout(() => { combatImpactLight.intensity = 0.0; }, 100);
 
       playZombieHitSound();
 
+      // Partículas 3D de sangue espirrando do zumbi
+      const bloodOrigin = hitPoint ? hitPoint.clone() : hitEnemy.group.position.clone().add(new THREE.Vector3(0, 0.8, 0));
+      const splatterDir = shootDir.clone().negate().add(new THREE.Vector3((Math.random() - 0.5) * 0.6, 0.4, (Math.random() - 0.5) * 0.6)).normalize();
+      spawnBloodSplatter(bloodOrigin, splatterDir, equippedWeaponId === 'shotgun' ? 45 : 28, hitEnemy.isBoss);
+
       // Aplica Dano e Knockback
       hitEnemy.hp -= damage;
-      hitEnemy.hitFlashTimer = 0.25;
+      hitEnemy.hitFlashTimer = 0.12;
       hitEnemy.isAggro = true;
 
       const knockback = shootDir.clone().multiplyScalar(equippedWeaponId === 'shotgun' ? 1.1 : 0.5);
@@ -1541,8 +2214,9 @@ function fireActiveWeapon() {
       if (hitEnemy.hp <= 0) {
         hitEnemy.hp = 0;
         hitEnemy.isDead = true;
-        hitEnemy.dyingTimer = 1.0;
+        hitEnemy.dyingTimer = 3.0;
         playZombieDeathSound(hitEnemy.isBoss);
+        playEnemyAnim(hitEnemy, 'death', 0.15);
 
         if (hitEnemy.isBoss) {
           playBossRoarSound();
@@ -1788,6 +2462,8 @@ function toggleGrandExitGate(gate) {
 
   if (gate.isOpen) {
     playVictorySound();
+    stopGameplayBGM();
+    playMenuBGM();
     const victoryModal = document.getElementById('victory-modal');
     if (victoryModal) victoryModal.classList.remove('hidden');
   }
@@ -1881,8 +2557,9 @@ fallbackPlayerMesh.receiveShadow = true;
 playerGroup.add(fallbackPlayerMesh);
 let playerBody = fallbackPlayerMesh;
 
-const playerLight = new THREE.PointLight(0x38bdf8, 0.8, 4);
-playerLight.position.set(0, -0.4, 0);
+// Iluminação omnidirecional ao redor do personagem (área imediata clara e nítida em 360°)
+const playerLight = new THREE.PointLight(0xfff0e2, 5.5, 11.0, 1.1);
+playerLight.position.set(0, 0.85, 0);
 playerGroup.add(playerLight);
 
 playerGroup.add(playerWeaponGroup);
@@ -1890,6 +2567,10 @@ scene.add(playerGroup);
 
 // --- SISTEMA DE ANIMAÇÃO E MODELOS DO JOGADOR ---
 let selectedCharacter = 'jake'; // 'jake' ou 'jane'
+let isAiming = false;
+let gamepadAiming = false;
+let mouseAiming = false;
+let keyAiming = false;
 let playerMixer = null;
 let playerActions = {};
 let activePlayerAction = null;
@@ -1930,24 +2611,43 @@ function updateActiveCharacterModel() {
     }
   }
 
+  // Garante que os meshes de armas em mãos sigam estritamente o estado da arma equipada
+  if (weaponInventory.revolver && weaponInventory.revolver.mesh) {
+    weaponInventory.revolver.mesh.visible = (equippedWeaponId === 'revolver');
+  }
+  if (weaponInventory.shotgun && weaponInventory.shotgun.mesh) {
+    weaponInventory.shotgun.mesh.visible = (equippedWeaponId === 'shotgun');
+  }
+
   // Tocar idle animation caso haja mixer válido
   if (playerMixer && playerActions['idle']) {
-    playPlayerAnim('idle', 0.1);
+    playPlayerAnim(isAiming ? 'aim' : (velocity.lengthSq() > 0 ? 'walk' : 'idle'), 0.1);
   }
 }
 
 function playPlayerAnim(actionName, duration = 0.2) {
+  if (isPlayerDead && actionName !== 'death' && actionName !== 'dying') {
+    return;
+  }
+
   let mappedAction = actionName;
 
-  if (currentWeaponStance === 'pistol') {
+  if (actionName === 'death' || actionName === 'dying') {
+    mappedAction = 'death';
+  } else if (playerHealth <= 35 && (actionName === 'walk' || actionName === 'run') && !isAiming) {
+    // Quando com pouca vida (<=35 HP / Danger & Caution crítico), usa as animações de ferido
+    if (actionName === 'walk') mappedAction = 'injured_walk';
+    if (actionName === 'run') mappedAction = 'injured_run';
+  } else if (currentWeaponStance === 'pistol') {
     if (actionName === 'idle') mappedAction = 'pistol_idle';
-    if (actionName === 'walk') mappedAction = 'pistol_walk';
-    if (actionName === 'run') mappedAction = 'pistol_run';
+    if (actionName === 'walk') mappedAction = (playerHealth <= 35 && !isAiming) ? 'injured_walk' : 'pistol_walk';
+    if (actionName === 'run') mappedAction = (playerHealth <= 35 && !isAiming) ? 'injured_run' : 'pistol_run';
+    if (actionName === 'shoot' || actionName === 'aim') mappedAction = 'shoot';
   } else if (currentWeaponStance === 'shotgun') {
     if (actionName === 'idle') mappedAction = 'rifle_idle';
-    if (actionName === 'walk') mappedAction = 'rifle_run'; // Usando run como walk pra rifle
-    if (actionName === 'run') mappedAction = 'rifle_run';
-    if (actionName === 'shoot') mappedAction = 'rifle_shoot';
+    if (actionName === 'walk') mappedAction = (playerHealth <= 35 && !isAiming) ? 'injured_walk' : 'rifle_run';
+    if (actionName === 'run') mappedAction = (playerHealth <= 35 && !isAiming) ? 'injured_run' : 'rifle_run';
+    if (actionName === 'shoot' || actionName === 'aim') mappedAction = 'rifle_shoot';
   }
 
   if (!playerMixer || !playerActions[mappedAction]) {
@@ -1969,21 +2669,53 @@ function playPlayerAnim(actionName, duration = 0.2) {
 assetManager.loadFBX('jake', 'assets/models/jake/jake.fbx');
 assetManager.loadFBX('jane', 'assets/models/jane/jane.fbx');
 
-// Carregar Animações FBX
+// Carregar modelos dos Inimigos e do Chefe FBX
+assetManager.loadFBX('enemy1', 'assets/models/enemy1.fbx');
+assetManager.loadFBX('enemy2', 'assets/models/enemy2.fbx');
+assetManager.loadFBX('enemy3', 'assets/models/enemy3.fbx');
+assetManager.loadFBX('enemy_boss', 'assets/models/enemy_boss.fbx');
+
+// Carregar Animações FBX do Jogador (Gerais e Específicas por Gênero)
 assetManager.loadFBXAnimation('idle', 'assets/animacoes/Idle.fbx');
-assetManager.loadFBXAnimation('walk', 'assets/animacoes/Walking.fbx');
+assetManager.loadFBXAnimation('idle_female', 'assets/animacoes/Idle_Female.fbx');
+assetManager.loadFBXAnimation('idle_male', 'assets/animacoes/Idle_Male.fbx');
+assetManager.loadFBXAnimation('walk_female', 'assets/animacoes/Walking_Female.fbx');
+assetManager.loadFBXAnimation('walk_male', 'assets/animacoes/Walking_Male.fbx');
 assetManager.loadFBXAnimation('run', 'assets/animacoes/run.fbx');
 assetManager.loadFBXAnimation('jump', 'assets/animacoes/jump.fbx');
 assetManager.loadFBXAnimation('shoot', 'assets/animacoes/Pistol_Shooting.fbx');
 assetManager.loadFBXAnimation('reload', 'assets/animacoes/Reloading.fbx');
+assetManager.loadFBXAnimation('death', 'assets/animacoes/Dying.fbx');
+assetManager.loadFBXAnimation('dying', 'assets/animacoes/Dying.fbx');
 assetManager.loadFBXAnimation('pistol_idle', 'assets/animacoes/Pistol Idle.fbx');
 assetManager.loadFBXAnimation('pistol_walk', 'assets/animacoes/Pistol Walk.fbx');
 assetManager.loadFBXAnimation('pistol_run', 'assets/animacoes/Pistol Run.fbx');
 assetManager.loadFBXAnimation('rifle_idle', 'assets/animacoes/Rifle Idle.fbx');
 assetManager.loadFBXAnimation('rifle_run', 'assets/animacoes/Rifle Run.fbx');
 assetManager.loadFBXAnimation('rifle_shoot', 'assets/animacoes/Firing Rifle.fbx');
+assetManager.loadFBXAnimation('injured_walk', 'assets/animacoes/Injured_Walking.fbx');
+assetManager.loadFBXAnimation('injured_run', 'assets/animacoes/Injured_Run.fbx');
+
+// Carregar Animações FBX dos Inimigos e Boss (pasta enemy_base)
+assetManager.loadFBXAnimation('enemy_idle', 'assets/animacoes/enemy_base/zombie idle.fbx');
+assetManager.loadFBXAnimation('enemy_walk', 'assets/animacoes/enemy_base/zombie walk.fbx');
+assetManager.loadFBXAnimation('enemy_run', 'assets/animacoes/enemy_base/zombie run.fbx');
+assetManager.loadFBXAnimation('enemy_attack', 'assets/animacoes/enemy_base/zombie attack.fbx');
+assetManager.loadFBXAnimation('enemy_death', 'assets/animacoes/enemy_base/zombie death.fbx');
+assetManager.loadFBXAnimation('enemy_dying', 'assets/animacoes/enemy_base/zombie dying.fbx');
+assetManager.loadFBXAnimation('enemy_biting', 'assets/animacoes/enemy_base/zombie biting.fbx');
+assetManager.loadFBXAnimation('enemy_scream', 'assets/animacoes/enemy_base/zombie scream.fbx');
 assetManager.loadModel('pistol', 'assets/models/pistol.glb');
 assetManager.loadModel('shotgun', 'assets/models/shotgun.glb');
+
+// Carregar Efeitos Sonoros com suporte a múltiplos formatos (.mp3, .m4a, .ogg, .wav)
+const gameSoundKeys = [
+  'gunshot_pistol', 'gunshot_shotgun', 'gunshot', 'reload', 'dryfire', 'ammo',
+  'hurt_male', 'hurt_female', 'hurt', 'heal_male', 'heal_female', 'heal',
+  'zombie_hit', 'zombie_groan', 'zombie_death', 'boss_roar',
+  'door', 'locked', 'key', 'switch', 'jump', 'victory'
+];
+gameSoundKeys.forEach(key => assetManager.loadSound(key, key));
 
 assetManager.manager.onProgress = (url, itemsLoaded, itemsTotal) => {
   const loadingProgress = document.getElementById('loading-progress');
@@ -2046,7 +2778,8 @@ assetManager.manager.onLoad = () => {
     } else if (wObj.id === 'shotgun' && assetManager.models['shotgun']) {
       wObj.group.children.forEach(ch => { if (ch.isMesh && (!ch.geometry || ch.geometry.type !== 'RingGeometry')) ch.visible = false; });
       const sModel = assetManager.models['shotgun'].clone();
-      sModel.scale.set(0.04, 0.04, 0.04);
+      // Tamanho do item Shotgun reduzido em 10% (0.04 -> 0.036)
+      sModel.scale.set(0.036, 0.036, 0.036);
       sModel.position.set(0, 0.15, 0);
       wObj.group.add(sModel);
     }
@@ -2103,17 +2836,46 @@ assetManager.manager.onLoad = () => {
     let actions = {};
     if (hasSkeleton) {
       mixer = new THREE.AnimationMixer(charModel);
-      const anims = ['idle', 'walk', 'run', 'jump', 'shoot', 'reload', 'pistol_idle', 'pistol_walk', 'pistol_run', 'rifle_idle', 'rifle_run', 'rifle_shoot'];
+      const isFemale = (modelKey === 'jane');
+      const anims = ['idle', 'walk', 'run', 'jump', 'shoot', 'reload', 'pistol_idle', 'pistol_walk', 'pistol_run', 'rifle_idle', 'rifle_run', 'rifle_shoot', 'death', 'dying', 'injured_walk', 'injured_run'];
       anims.forEach(animName => {
-        const clip = assetManager.getAnimation(animName);
+        let animKey = animName;
+        if (animName === 'idle') {
+          animKey = isFemale ? 'idle_female' : 'idle_male';
+        } else if (animName === 'walk') {
+          animKey = isFemale ? 'walk_female' : 'walk_male';
+        }
+
+        let clip = assetManager.getAnimation(animKey);
+        // Fallback para nome padrão se a animação específica por gênero não estiver carregada
+        if (!clip && animKey !== animName) {
+          clip = assetManager.getAnimation(animName);
+        }
+
         if (clip && clip.tracks) {
           // Clona o clip para evitar conflitos entre as instâncias dos personagens
           const clipClone = clip.clone();
           clipClone.tracks.forEach(track => {
-            if (track && track.name) track.name = track.name.replace(/.*mixamorig/g, 'mixamorig');
+            if (track && track.name) {
+              track.name = track.name.replace(/.*mixamorig/g, 'mixamorig');
+              // Neutraliza root motion no quadril para evitar deslocamento ou afundamento no chão
+              if (track.name.includes('Hips.position')) {
+                const values = track.values;
+                const initialX = values[0] || 0;
+                const initialY = values[1] || 0;
+                const initialZ = values[2] || 0;
+                for (let i = 0; i < values.length; i += 3) {
+                  values[i] = initialX;
+                  if (animName !== 'jump' && animName !== 'death' && animName !== 'dying') {
+                    values[i + 1] = initialY;
+                  }
+                  values[i + 2] = initialZ;
+                }
+              }
+            }
           });
           const action = mixer.clipAction(clipClone);
-          if (['jump', 'shoot', 'reload', 'rifle_shoot'].includes(animName)) {
+          if (['jump', 'shoot', 'reload', 'rifle_shoot', 'death', 'dying'].includes(animName)) {
             action.setLoop(THREE.LoopOnce);
             action.clampWhenFinished = true;
           }
@@ -2154,20 +2916,108 @@ assetManager.manager.onLoad = () => {
   // Garante que os personagens comecem desarmados
   equipWeapon(null);
 
-  console.log("Modelos e animações configurados com sucesso!");
+  // Configura todos os inimigos e o chefe com modelos FBX e animações
+  setupAllEnemies();
+
+  // Configura o corpo estático do zumbi decorativo no final do corredor
+  setupCorpseProp();
+
+  // Inicia a música do Menu
+  playMenuBGM();
+
+  // Desbloqueia áudio na primeira interação do usuário caso o navegador bloqueie autoplay
+  const startAudioOnFirstClick = () => {
+    if (!isGameStarted || isGamePaused) {
+      playMenuBGM();
+    }
+  };
+  window.addEventListener('pointerdown', startAudioOnFirstClick, { once: true });
+  window.addEventListener('keydown', startAudioOnFirstClick, { once: true });
+
+  console.log("Modelos e animações de personagens e inimigos configurados com sucesso!");
 };
+
+let corpseMixer = null;
+
+// --- CORPO DE ZUMBI DECORATIVO NO FINAL DO CORREDOR (CENÁRIO) ---
+function setupCorpseProp() {
+  const baseModel = assetManager.models['enemy1'] || assetManager.models['enemy2'] || assetManager.models['enemy3'];
+  if (!baseModel) return;
+
+  const corpseGroup = new THREE.Group();
+  // Posicionado no final do corredor oeste (y = 1.0 para coincidir com a altura dos zumbis na cena)
+  corpseGroup.position.set(-25.8, 1.0, 0.4);
+  corpseGroup.rotation.set(0, Math.PI / 3, 0);
+
+  // Poça de sangue decorativa rente ao chão (y = -0.98 relativo ao grupo = 0.02 no mundo)
+  const bloodMat = new THREE.MeshStandardMaterial({
+    color: 0x3b0707,
+    roughness: 0.15,
+    metalness: 0.2,
+    transparent: true,
+    opacity: 0.92,
+  });
+  const puddle = new THREE.Mesh(new THREE.CircleGeometry(1.1, 16), bloodMat);
+  puddle.rotation.x = -Math.PI / 2;
+  puddle.position.set(0, -0.98, 0);
+  puddle.receiveShadow = true;
+  corpseGroup.add(puddle);
+
+  // Clona o modelo do zumbi
+  const corpseInstance = SkeletonUtils.clone(baseModel);
+  corpseInstance.scale.set(0.0228, 0.0228, 0.0228);
+  corpseInstance.position.set(0, -1.0, 0);
+  corpseInstance.traverse(child => {
+    if (child.isMesh) {
+      child.castShadow = true;
+      child.receiveShadow = true;
+      child.frustumCulled = false;
+      child.visible = true;
+      if (child.material) {
+        if (Array.isArray(child.material)) {
+          child.material.forEach(m => { m.side = THREE.DoubleSide; });
+        } else {
+          child.material.side = THREE.DoubleSide;
+        }
+      }
+    }
+  });
+
+  // Aplica a pose final de morte (enemy_death)
+  const clip = assetManager.getAnimation('enemy_death') || assetManager.getAnimation('enemy_dying');
+  if (clip) {
+    corpseMixer = new THREE.AnimationMixer(corpseInstance);
+    const clipClone = clip.clone();
+    clipClone.tracks.forEach(track => {
+      if (track && track.name) {
+        track.name = track.name.replace(/.*mixamorig/g, 'mixamorig').replace(/mixamorig:/g, 'mixamorig');
+      }
+    });
+    const action = corpseMixer.clipAction(clipClone);
+    action.setLoop(THREE.LoopOnce);
+    action.clampWhenFinished = true;
+    action.play();
+    corpseMixer.setTime(clip.duration); // Fixa diretamente no quadro final caído no chão
+  } else {
+    corpseInstance.rotation.x = -Math.PI / 2;
+    corpseInstance.position.set(0, -0.85, 0);
+  }
+
+  corpseGroup.add(corpseInstance);
+  scene.add(corpseGroup);
+}
 
 // --- SISTEMA DE MOVIMENTAÇÃO, CONTROLES E ATALHOS ---
 const keys = { w: false, a: false, s: false, d: false, space: false, shift: false };
 const velocity = new THREE.Vector3();
 let velocityY = 0;
 const GRAVITY = -24.0;
-const JUMP_FORCE = 9.2;
+const JUMP_FORCE = 5.8; // Pulo reduzido e realista (~0.7m de elevação)
 let isGrounded = true;
 
-const MOVE_SPEED = 3.5;
-const RUN_SPEED = 6.5;
-const ACCELERATION = 24.0;
+const MOVE_SPEED = 2.8; // Caminhada ajustada para ser ligeiramente mais rápida que os zumbis
+const RUN_SPEED = 4.1;  // Corrida tática (pouco acima dos stalkers ágeis 3.0-3.2)
+const ACCELERATION = 20.0;
 const FRICTION = 10.0;
 let playerRotation = Math.PI / 2;
 let walkBobTimer = 0;
@@ -2185,6 +3035,13 @@ window.addEventListener('keydown', (e) => {
     }
   }
 
+  // Tecla para sair da Sala de Testes e voltar ao menu
+  if (isGameStarted && isTestRoomMode && key === 'm') {
+    exitTestRoomMode();
+    e.preventDefault();
+    return;
+  }
+
   if (!isGameStarted && (e.code === 'Space' || e.code === 'Enter' || key === ' ')) {
     startGame();
     e.preventDefault();
@@ -2198,9 +3055,10 @@ window.addEventListener('keydown', (e) => {
   if (key === 's' || key === 'arrowdown') updateKeyState('s', true);
   if (key === 'd' || key === 'arrowright') updateKeyState('d', true);
   if (e.code === 'Space' || key === ' ') { updateKeyState('space', true); e.preventDefault(); }
-  if (e.key === 'Shift') updateKeyState('shift', true);
+  if (key === 'shift') updateKeyState('shift', true);
   if (key === 'e') handleInteraction();
   if (key === 'g') fireActiveWeapon();
+  if (key === 'f' || key === 'v') keyAiming = true;
   if (key === 'q') useMedkit();
   if (key === 'h') toggleHUD();
   if (key === '1') equipWeapon('revolver');
@@ -2216,7 +3074,27 @@ window.addEventListener('keyup', (e) => {
   if (key === 's' || key === 'arrowdown') updateKeyState('s', false);
   if (key === 'd' || key === 'arrowright') updateKeyState('d', false);
   if (e.code === 'Space' || key === ' ') { updateKeyState('space', false); e.preventDefault(); }
-  if (e.key === 'Shift') updateKeyState('shift', false);
+  if (key === 'shift') updateKeyState('shift', false);
+  if (key === 'f' || key === 'v') keyAiming = false;
+});
+
+// Suporte ao Botão Direito do Mouse para Mirar (Aim)
+window.addEventListener('mousedown', (e) => {
+  if (e.button === 2) {
+    mouseAiming = true;
+  }
+});
+
+window.addEventListener('mouseup', (e) => {
+  if (e.button === 2) {
+    mouseAiming = false;
+  }
+});
+
+window.addEventListener('contextmenu', (e) => {
+  if (isGameStarted && !isGamePaused) {
+    e.preventDefault();
+  }
 });
 
 function updateKeyState(key, isPressed) {
@@ -2324,9 +3202,13 @@ function togglePauseGame(forceState) {
     if (isGamePaused) {
       pauseModal.classList.remove('hidden');
       showPauseScreen('pause-screen-main');
+      pauseGameplayBGM();
+      playMenuBGM();
     } else {
       pauseModal.classList.add('hidden');
       clock.getDelta(); // Limpa o delta acumulado durante a pausa
+      stopMenuBGM();
+      startGameplayBGM();
     }
   }
 }
@@ -2337,16 +3219,19 @@ function initMenuNavigation() {
   const btnOpenInst = document.getElementById('btn-open-instructions');
   const btnBackDiff = document.getElementById('btn-back-from-diff');
   const btnBackInst = document.getElementById('btn-back-from-inst');
+  const btnStartTestRoom = document.getElementById('btn-start-test-room');
 
   if (btnOpenDiff) btnOpenDiff.addEventListener('click', () => showMenuScreen('menu-screen-difficulty'));
   if (btnOpenInst) btnOpenInst.addEventListener('click', () => showMenuScreen('menu-screen-instructions'));
   if (btnBackDiff) btnBackDiff.addEventListener('click', () => showMenuScreen('menu-screen-main'));
   if (btnBackInst) btnBackInst.addEventListener('click', () => showMenuScreen('menu-screen-main'));
+  if (btnStartTestRoom) btnStartTestRoom.addEventListener('click', startTestRoomMode);
 
   // Navegação no Menu de Pausa
   const btnResumeGame = document.getElementById('btn-resume-game');
   const btnPauseDiff = document.getElementById('btn-pause-difficulty');
   const btnPauseRestart = document.getElementById('btn-pause-restart');
+  const btnPauseMenu = document.getElementById('btn-pause-menu');
   const btnBackPauseDiff = document.getElementById('btn-back-from-pause-diff');
 
   if (btnResumeGame) {
@@ -2362,6 +3247,14 @@ function initMenuNavigation() {
     btnPauseRestart.addEventListener('click', () => {
       togglePauseGame(false);
       resetGameState();
+      stopMenuBGM();
+      startGameplayBGM();
+    });
+  }
+  if (btnPauseMenu) {
+    btnPauseMenu.addEventListener('click', () => {
+      togglePauseGame(false);
+      exitTestRoomMode();
     });
   }
 
@@ -2418,10 +3311,97 @@ function initMenuNavigation() {
 
 initMenuNavigation();
 
+function startTestRoomMode() {
+  isTestRoomMode = true;
+  resetGameState();
+
+  // Teleporta o jogador para o centro da Sala de Testes (X: 200, Z: 200)
+  playerGroup.position.set(200, 1.0, 200);
+  playerRotation = 0;
+  playerGroup.rotation.y = playerRotation;
+  cameraYaw = 0;
+  cameraPitch = 0.20;
+  cameraDistance = 3.8;
+
+  // Libera armas e munições para testes completos
+  weaponInventory.revolver.isAcquired = true;
+  weaponInventory.revolver.loadedAmmo = 6;
+  weaponInventory.revolver.reserveAmmo = 99;
+
+  weaponInventory.shotgun.isAcquired = true;
+  weaponInventory.shotgun.loadedAmmo = 4;
+  weaponInventory.shotgun.reserveAmmo = 99;
+
+  equipWeapon('revolver');
+  medkits = 5;
+
+  if (scene.fog) scene.fog.density = 0.012; // Névoa suave na sala de testes
+  isGameStarted = true;
+  isGamePaused = false;
+
+  stopMenuBGM();
+  startGameplayBGM();
+
+  orbitControls.autoRotate = false;
+  orbitControls.enabled = !isThirdPerson;
+
+  if (AUDIO_ENABLED) {
+    const ctx = getAudioContext();
+    if (ctx.state === 'suspended') ctx.resume();
+  }
+
+  const startModal = document.getElementById('start-menu-modal');
+  if (startModal) startModal.classList.add('hidden');
+
+  const pauseModal = document.getElementById('pause-modal');
+  if (pauseModal) pauseModal.classList.add('hidden');
+
+  updateActiveCharacterModel();
+  updateInventoryUI();
+  updateWeaponsUI();
+  updatePlayerHealthUI();
+
+  setTimeout(() => {
+    window.scrollTo(0, 0);
+    document.body.scrollTop = 0;
+    window.dispatchEvent(new Event('resize'));
+  }, 50);
+
+  console.log("Sala de Testes Sandbox inicializada!");
+}
+
+function exitTestRoomMode() {
+  isTestRoomMode = false;
+  resetGameState();
+
+  stopGameplayBGM();
+  playMenuBGM();
+
+  if (scene.fog) scene.fog.density = 0.215;
+  isGameStarted = false;
+  isGamePaused = false;
+
+  const startModal = document.getElementById('start-menu-modal');
+  if (startModal) {
+    startModal.classList.remove('hidden');
+    showMenuScreen('menu-screen-main');
+  }
+
+  const pauseModal = document.getElementById('pause-modal');
+  if (pauseModal) pauseModal.classList.add('hidden');
+
+  orbitControls.enabled = true;
+  orbitControls.autoRotate = true;
+}
+
 function startGame() {
   if (isGameStarted) return;
+  isTestRoomMode = false;
   isGameStarted = true;
   toggleRoomEnvironmentLight('corridor', false);
+
+  stopMenuBGM();
+  startGameplayBGM();
 
   orbitControls.autoRotate = false;
   orbitControls.enabled = !isThirdPerson;
@@ -2437,6 +3417,10 @@ function startGame() {
   const startModal = document.getElementById('start-menu-modal');
   if (startModal) startModal.classList.add('hidden');
   playVictorySound();
+
+  // Garante que o jogador começa desarmado no início da campanha
+  equipWeapon(null);
+  updateWeaponsUI();
 
   // Define o modelo ativo
   updateActiveCharacterModel();
@@ -2524,6 +3508,19 @@ if (btnGameOverRestart) {
   btnGameOverRestart.addEventListener('click', () => {
     resetGameState();
     isGameStarted = false;
+    stopGameplayBGM();
+    playMenuBGM();
+
+    // Reseta a câmera orbital de volta para a visualização do menu principal
+    camera.position.set(28.8, 2.1, 0.0);
+    currentCameraPos.copy(camera.position);
+    currentLookAt.set(25, 1.2, 0);
+    orbitControls.target.set(25, 1.0, 0);
+    orbitControls.enabled = true;
+    orbitControls.autoRotate = true;
+    orbitControls.autoRotateSpeed = 1.0;
+    orbitControls.update();
+
     const startModal = document.getElementById('start-menu-modal');
     if (startModal) {
       startModal.classList.remove('hidden');
@@ -2689,8 +3686,13 @@ function updateHUDLightStat() {
   const currentEnvId = getRoomIdAtPosition(playerGroup.position.x, playerGroup.position.z);
   const env = roomEnvironments[currentEnvId];
   if (env) {
-    statLight.textContent = env.isLit ? `${env.name}: Acesa 💡` : `${env.name}: Apagada 🌙`;
-    statLight.className = env.isLit ? 'stat-value badge-light-on' : 'stat-value badge-light-off';
+    if (currentEnvId === 'corridor' && env.isLit && corridorFlickerBugActive) {
+      statLight.textContent = `${env.name}: Curto / Falha ⚡`;
+      statLight.className = 'stat-value badge-light-flicker';
+    } else {
+      statLight.textContent = env.isLit ? `${env.name}: Acesa 💡` : `${env.name}: Apagada 🌙`;
+      statLight.className = env.isLit ? 'stat-value badge-light-on' : 'stat-value badge-light-off';
+    }
   }
 }
 
@@ -2787,6 +3789,30 @@ window.addEventListener('pointermove', (e) => {
 window.addEventListener('pointerup', () => { isPointerDown = false; });
 
 function resetGameState() {
+  // 1. Interrompe todos os sons e áudios que estiverem tocando
+  if (typeof audioListener !== 'undefined' && audioListener && audioListener.children) {
+    audioListener.children.forEach(child => {
+      if (child && child.isAudio && child.isPlaying) {
+        try { child.stop(); } catch (err) { }
+      }
+    });
+  }
+
+  // 2. Limpa todas as partículas 3D de sangue do cenário
+  if (typeof bloodParticlesPool !== 'undefined' && typeof bloodInstancedMesh !== 'undefined') {
+    for (let i = 0; i < MAX_BLOOD_PARTICLES; i++) {
+      const p = bloodParticlesPool[i];
+      p.active = false;
+      p.life = 0;
+      p.pos.set(0, -100, 0);
+      p.vel.set(0, 0, 0);
+      bloodDummyMatrix.makeTranslation(0, -100, 0);
+      bloodInstancedMesh.setMatrixAt(i, bloodDummyMatrix);
+    }
+    bloodInstancedMesh.instanceMatrix.needsUpdate = true;
+  }
+
+  // 3. Reseta Chaves e Coletáveis do Cenário
   acquiredKeys.clear();
   keyObjects.forEach(k => { k.isCollected = false; k.group.visible = true; });
   collectibleWeapons.forEach(w => { w.isCollected = false; w.group.visible = true; });
@@ -2800,7 +3826,7 @@ function resetGameState() {
     keyObjects.splice(masterKeyIndex, 1);
   }
 
-  // Reseta Inimigos
+  // 4. Reseta Inimigos e Chefe (Vida, Posição, Animação e Agressividade)
   activeEnemies.forEach(e => {
     e.isDead = false;
     e.maxHp = Math.round(e.baseHp * gameDifficulty.hpMultiplier);
@@ -2811,42 +3837,149 @@ function resetGameState() {
     e.hitFlashTimer = 0;
     e.attackCooldown = 0;
     e.isAggro = false;
+    e.hasMoved = false;
+    e.groanTimer = Math.random() * 4 + 2;
     e.group.position.set(e.initialX, e.initialY, e.initialZ);
     e.group.rotation.set(0, 0, 0);
     e.group.visible = true;
-    e.skinMat.emissive.setHex(0x000000);
-    e.skinMat.emissiveIntensity = 0.0;
+    if (e.skinMat) {
+      e.skinMat.emissive.setHex(0x000000);
+      e.skinMat.emissiveIntensity = 0.0;
+    }
+    if (e.materials) {
+      e.materials.forEach(m => {
+        if (m && m.emissive) {
+          m.emissive.setHex(0x000000);
+          m.emissiveIntensity = 0.0;
+        }
+      });
+    }
+    if (e.actions) {
+      for (const k in e.actions) {
+        if (e.actions[k]) e.actions[k].stop();
+      }
+      playEnemyAnim(e, 'idle', 0.1);
+    }
   });
 
-  // Reseta Saúde e Inventário do Jogador
+  // 5. Reseta Saúde, Inventário, Armas e Estados de Mira do Jogador
   playerHealth = 100;
   medkits = 0;
   isPlayerDead = false;
   invulnerableTimer = 0;
+  isAiming = false;
+  gamepadAiming = false;
+  mouseAiming = false;
+  keyAiming = false;
 
   weaponInventory.revolver.isAcquired = false; weaponInventory.revolver.loadedAmmo = 0; weaponInventory.revolver.reserveAmmo = 0;
   weaponInventory.shotgun.isAcquired = false; weaponInventory.shotgun.loadedAmmo = 0; weaponInventory.shotgun.reserveAmmo = 0;
   equipWeapon(null);
 
+  // 6. Reseta Portas e Portão Mestre
   interactiveDoors.forEach(d => {
-    d.isOpen = false; d.isUnlocked = !d.requiredKey; d.targetAngle = 0;
+    d.isOpen = false; d.isUnlocked = !d.requiredKey; d.targetAngle = 0; d.currentAngle = 0;
+    d.pivot.rotation.y = 0;
     if (d.colliderIndex >= 0 && wallColliders[d.colliderIndex]) wallColliders[d.colliderIndex].disabled = false;
   });
   if (grandExitGate) {
-    grandExitGate.isOpen = false; grandExitGate.targetAngle = 0;
+    grandExitGate.isOpen = false; grandExitGate.targetAngle = 0; grandExitGate.currentAngle = 0;
+    grandExitGate.pivotLeft.rotation.y = 0;
+    grandExitGate.pivotRight.rotation.y = 0;
     if (grandExitGate.colliderIndex >= 0 && wallColliders[grandExitGate.colliderIndex]) wallColliders[grandExitGate.colliderIndex].disabled = false;
   }
 
+  // 7. Reseta Névoa dos Quartos Trancados
   for (const envId in roomFogObjects) {
     const fogObj = roomFogObjects[envId];
     fogObj.isCleared = false; fogObj.targetOpacity = 0.96;
     fogObj.fogMat.opacity = 0.96; fogObj.barrierMat.opacity = 0.95; fogObj.group.visible = true;
   }
 
-  playerGroup.position.set(25, 1.0, 0);
-  velocity.set(0, 0, 0); velocityY = 0;
-  isGrounded = true; playerRotation = Math.PI / 2;
-  playerGroup.rotation.y = playerRotation; cameraYaw = -Math.PI / 2; cameraPitch = 0.20; cameraDistance = 3.8;
+  // 8. Desliga Luzes dos Quartos e Reseta Interruptores
+  corridorFlickerBugActive = false;
+  corridorFlickerTimer = 0;
+  corridorNextFlickerTime = 5.0 + Math.random() * 6.0;
+
+  for (const envId in roomEnvironments) {
+    const env = roomEnvironments[envId];
+    env.isLit = false;
+    if (env.rocker) env.rocker.rotation.x = 0.22;
+    if (env.ledMat) {
+      env.ledMat.color.setHex(0xef4444);
+      env.ledMat.emissive.setHex(0xef4444);
+    }
+    if (env.ledLight) {
+      env.ledLight.color.setHex(0xef4444);
+      env.ledLight.intensity = 1.2;
+    }
+    if (env.holoMat) {
+      env.holoMat.color.setHex(0xf59e0b);
+    }
+    for (const lightObj of env.lights) {
+      lightObj.intensity = 0.0;
+    }
+    if (env.lampMats) {
+      for (const m of env.lampMats) {
+        m.emissiveIntensity = 0.0;
+      }
+    }
+  }
+  if (combatFlashLight) combatFlashLight.intensity = 0.0;
+  if (combatImpactLight) combatImpactLight.intensity = 0.0;
+
+  // 9. Reseta Animação e Posição do Jogador
+  if (jakeModelInstance) {
+    jakeModelInstance.position.set(0, -1.0, 0);
+    jakeModelInstance.rotation.set(0, 0, 0);
+  }
+  if (janeModelInstance) {
+    janeModelInstance.position.set(0, -1.0, 0);
+    janeModelInstance.rotation.set(0, 0, 0);
+  }
+  if (fallbackPlayerMesh) {
+    fallbackPlayerMesh.position.set(0, -0.1, 0);
+    fallbackPlayerMesh.rotation.set(0, 0, 0);
+  }
+
+  if (jakeMixer) {
+    jakeMixer.stopAllAction();
+    if (jakeActions['idle']) jakeActions['idle'].reset().play();
+  }
+  if (janeMixer) {
+    janeMixer.stopAllAction();
+    if (janeActions['idle']) janeActions['idle'].reset().play();
+  }
+  activePlayerAction = null;
+  currentWeaponStance = 'unarmed';
+  walkBobTimer = 0;
+  idleAnimTimer = 0;
+
+  if (isTestRoomMode) {
+    playerGroup.position.set(200, 1.0, 200);
+    velocity.set(0, 0, 0); velocityY = 0;
+    isGrounded = true; playerRotation = 0;
+    playerGroup.rotation.y = playerRotation;
+    cameraYaw = 0; cameraPitch = 0.20; cameraDistance = 3.8;
+    weaponInventory.revolver.isAcquired = true; weaponInventory.revolver.loadedAmmo = 6; weaponInventory.revolver.reserveAmmo = 99;
+    weaponInventory.shotgun.isAcquired = true; weaponInventory.shotgun.loadedAmmo = 4; weaponInventory.shotgun.reserveAmmo = 99;
+    equipWeapon('revolver');
+    medkits = 5;
+  } else {
+    playerGroup.position.set(25, 1.0, 0);
+    velocity.set(0, 0, 0); velocityY = 0;
+    isGrounded = true; playerRotation = Math.PI / 2;
+    playerGroup.rotation.y = playerRotation; cameraYaw = -Math.PI / 2; cameraPitch = 0.20; cameraDistance = 3.8;
+  }
+
+  updateActiveCharacterModel();
+
+  // 10. Limpa Overlays de Dano / Cura e Modais
+  const dmgOverlay = document.getElementById('screen-damage-overlay');
+  if (dmgOverlay) dmgOverlay.classList.remove('active');
+  const healOverlay = document.getElementById('screen-heal-overlay');
+  if (healOverlay) healOverlay.classList.remove('active');
+  if (interactionPrompt) interactionPrompt.classList.add('hidden');
 
   const victoryModal = document.getElementById('victory-modal');
   if (victoryModal) victoryModal.classList.add('hidden');
@@ -2865,10 +3998,23 @@ function resetGameState() {
   updateWeaponsUI();
   updatePlayerHealthUI();
   updateGoalHUD();
+  updateHUDLightStat();
 }
 
-if (btnReset) btnReset.addEventListener('click', () => resetGameState());
-if (btnReplay) btnReplay.addEventListener('click', () => resetGameState());
+if (btnReset) btnReset.addEventListener('click', () => {
+  resetGameState();
+  if (!isGameStarted) {
+    stopGameplayBGM();
+    playMenuBGM();
+  } else {
+    stopMenuBGM();
+    startGameplayBGM();
+  }
+});
+if (btnReplay) btnReplay.addEventListener('click', () => {
+  resetGameState();
+  startGame();
+});
 
 btnCamera.addEventListener('click', () => {
   isThirdPerson = !isThirdPerson;
@@ -2882,6 +4028,7 @@ btnCamera.addEventListener('click', () => {
 });
 
 function getRoomIdAtPosition(px, pz) {
+  if (px > 100) return 'test_room';
   if (pz < -3.6) {
     if (px < -10.2) return 'q101';
     if (px < 2.0) return 'q102';
@@ -3017,6 +4164,12 @@ function animate() {
     }
   }
 
+  // Animação das placas de névoa rasteira 3D
+  for (const plane of groundMistPlanes) {
+    plane.rotation.z += plane.userData.rotSpeed * delta;
+    plane.position.y = plane.userData.baseY + Math.sin(time * plane.userData.floatSpeed + plane.userData.floatOffset) * 0.04;
+  }
+
   // Animação das chaves 3D
   for (const keyObj of keyObjects) {
     if (!keyObj.isCollected) {
@@ -3049,18 +4202,51 @@ function animate() {
     }
   }
 
+  // Atualização das partículas de sangue 3D
+  updateBloodParticles(delta);
+
   // --- IA E ATUALIZAÇÃO DOS INIMIGOS E BOSS ---
   const currentRoomId = getRoomIdAtPosition(playerGroup.position.x, playerGroup.position.z);
 
+  // Atualização do Mixer de Animação do Corpo Decorativo no Corredor
+  if (corpseMixer) {
+    corpseMixer.update(delta);
+  }
+
   for (const enemy of activeEnemies) {
+    // Atualização do Mixer de Animação FBX do Inimigo
+    if (enemy.mixer) {
+      enemy.mixer.update(delta);
+    }
+
     // Decréscimo de cooldowns e flashes
     if (enemy.hitFlashTimer > 0) {
       enemy.hitFlashTimer -= delta;
-      enemy.skinMat.emissive.setHex(0xff0000);
-      enemy.skinMat.emissiveIntensity = 2.5;
+      if (enemy.skinMat) {
+        enemy.skinMat.emissive.setHex(0x660000);
+        enemy.skinMat.emissiveIntensity = 0.8;
+      }
+      if (enemy.materials) {
+        enemy.materials.forEach(m => {
+          if (m && m.emissive) {
+            m.emissive.setHex(0x660000);
+            m.emissiveIntensity = 0.8;
+          }
+        });
+      }
     } else {
-      enemy.skinMat.emissive.setHex(0x000000);
-      enemy.skinMat.emissiveIntensity = 0.0;
+      if (enemy.skinMat) {
+        enemy.skinMat.emissive.setHex(0x000000);
+        enemy.skinMat.emissiveIntensity = 0.0;
+      }
+      if (enemy.materials) {
+        enemy.materials.forEach(m => {
+          if (m && m.emissive) {
+            m.emissive.setHex(0x000000);
+            m.emissiveIntensity = 0.0;
+          }
+        });
+      }
     }
 
     if (enemy.attackCooldown > 0) {
@@ -3070,23 +4256,15 @@ function animate() {
     // Comportamento se o inimigo morreu
     if (enemy.isDead) {
       if (enemy.dyingTimer > 0) {
-        enemy.dyingTimer -= delta * 2.0;
-        enemy.group.rotation.x = (1.0 - Math.max(0, enemy.dyingTimer)) * (Math.PI / 2.2);
-        enemy.group.position.y = THREE.MathUtils.lerp(enemy.initialY, 0.25, 1.0 - Math.max(0, enemy.dyingTimer));
+        enemy.dyingTimer -= delta;
+      }
+      if (enemy.currentActionName !== 'death' && enemy.currentActionName !== 'dying') {
+        playEnemyAnim(enemy, 'death', 0.15);
       }
       continue;
     }
 
     const distToPlayer = enemy.group.position.distanceTo(playerGroup.position);
-
-    // Sons aleatórios de gemido do zumbi
-    if (distToPlayer < 14.0) {
-      enemy.groanTimer -= delta;
-      if (enemy.groanTimer <= 0) {
-        playZombieGroanSound();
-        enemy.groanTimer = Math.random() * 6.0 + 4.0;
-      }
-    }
 
     // Checa se o inimigo foi ativado (Aggro estrito por quarto / porta aberta)
     const doorNumber = enemy.targetRoom ? enemy.targetRoom.replace('q', '') : null;
@@ -3097,10 +4275,27 @@ function animate() {
 
     if (isInSameRoom || (isDoorOpen && distToPlayer < 14.0)) {
       enemy.isAggro = true;
+      enemy.hasMoved = true;
+    }
+
+    // Sons de gemido e rugido dos zumbis e do boss:
+    // APENAS após se mexerem pela primeira vez (hasMoved) e quando estiverem próximos ao jogador (< 6.5m)
+    if (enemy.hasMoved && !enemy.isDead && distToPlayer < 6.5) {
+      enemy.groanTimer -= delta;
+      if (enemy.groanTimer <= 0) {
+        if (enemy.isBoss) {
+          if (Math.random() < 0.35) playBossRoarSound();
+          else playZombieGroanSound();
+        } else {
+          playZombieGroanSound();
+        }
+        enemy.groanTimer = Math.random() * 5.0 + 3.5;
+      }
     }
 
     // Perseguição inteligente ao jogador (Entra e sai das salas pelas portas sem travar)
     if (enemy.isAggro && !isPlayerDead && (isInSameRoom || isDoorOpen)) {
+      enemy.hasMoved = true;
       let targetMovePos = playerGroup.position.clone();
 
       // 1. Inimigo dentro de uma sala e o jogador está no corredor ou em outro quarto:
@@ -3150,7 +4345,7 @@ function animate() {
         while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
         enemy.group.rotation.y += angleDiff * Math.min(1.0, 9.0 * delta);
 
-        const stopDist = enemy.isBoss ? 1.8 : 1.15;
+        const stopDist = enemy.isBoss ? 1.9 : 1.25;
         if (realDistToPlayer > stopDist) {
           toTarget.normalize();
 
@@ -3223,40 +4418,80 @@ function animate() {
             }
           }
 
+          // Colisão com Móveis e Obstáculos do Cenário (Mesas, Bancos, Caixas, Sofás)
+          for (const box of steppableBoxes) {
+            const collidesWithBox = (
+              allowedX + enemyRadius > box.minX &&
+              allowedX - enemyRadius < box.maxX &&
+              allowedZ + enemyRadius > box.minZ &&
+              allowedZ - enemyRadius < box.maxZ
+            );
+
+            if (collidesWithBox) {
+              const collidesXOnly = (
+                allowedX + enemyRadius > box.minX &&
+                allowedX - enemyRadius < box.maxX &&
+                enemy.group.position.z + enemyRadius > box.minZ &&
+                enemy.group.position.z - enemyRadius < box.maxZ
+              );
+              const collidesZOnly = (
+                enemy.group.position.x + enemyRadius > box.minX &&
+                enemy.group.position.x - enemyRadius < box.maxX &&
+                allowedZ + enemyRadius > box.minZ &&
+                allowedZ - enemyRadius < box.maxZ
+              );
+
+              if (collidesXOnly && !collidesZOnly) {
+                allowedX = enemy.group.position.x;
+              } else if (collidesZOnly && !collidesXOnly) {
+                allowedZ = enemy.group.position.z;
+              } else {
+                if (Math.abs(toTarget.x) > Math.abs(toTarget.z)) {
+                  allowedZ = enemy.group.position.z;
+                } else {
+                  allowedX = enemy.group.position.x;
+                }
+              }
+            }
+          }
+
           enemy.group.position.x = allowedX;
           enemy.group.position.z = allowedZ;
 
-          // Animação de caminhada
-          enemy.walkCycle += delta * (enemy.speed * 3.2);
-          enemy.leftLeg.rotation.x = Math.sin(enemy.walkCycle) * 0.45;
-          enemy.rightLeg.rotation.x = -Math.sin(enemy.walkCycle) * 0.45;
-          enemy.leftArm.rotation.x = -Math.PI / 3 + Math.sin(enemy.walkCycle) * 0.25;
-          enemy.rightArm.rotation.x = -Math.PI / 3 - Math.sin(enemy.walkCycle) * 0.25;
+          // Animação FBX de locomoção
+          if (enemy.type === 'stalker') {
+            playEnemyAnim(enemy, 'run', 0.2);
+          } else {
+            playEnemyAnim(enemy, 'walk', 0.2);
+          }
         } else {
           // Inimigo no alcance de ataque do jogador
           if (enemy.attackCooldown <= 0) {
             damagePlayer(enemy.damage, enemy.name);
-            enemy.attackCooldown = enemy.isBoss ? 1.6 : 1.2;
-
-            // Pose de ataque
-            enemy.leftArm.rotation.x = -Math.PI / 1.6;
-            enemy.rightArm.rotation.x = -Math.PI / 1.6;
+            enemy.attackCooldown = enemy.isBoss ? 1.8 : 1.2;
+            playEnemyAnim(enemy, 'attack', 0.1);
+          } else {
+            // Se terminou o ataque, volta para idle
+            if (enemy.currentActionName === 'attack' && enemy.activeAction && !enemy.activeAction.isRunning()) {
+              playEnemyAnim(enemy, 'idle', 0.2);
+            }
           }
         }
       }
+    } else if (!enemy.isAggro && !enemy.isDead) {
+      // Inimigo parado em guarda / idle
+      playEnemyAnim(enemy, 'idle', 0.3);
     }
   }
 
   // Atualização da barra de vida do Chefe
   updateBossHealthUI();
 
-  // Temporizador de invulnerabilidade do jogador (Piscar)
+  // Temporizador de invulnerabilidade do jogador (sem piscar o modelo)
   if (invulnerableTimer > 0) {
     invulnerableTimer -= delta;
-    if (playerBody) playerBody.visible = (Math.floor(time * 24) % 2 === 0);
-  } else {
-    if (playerBody) playerBody.visible = true;
   }
+  if (playerBody) playerBody.visible = true;
 
   // Movimento
   const forward = new THREE.Vector3(-Math.sin(cameraYaw), 0, -Math.cos(cameraYaw));
@@ -3330,16 +4565,18 @@ function animate() {
           reloadActiveWeapon();
         }
 
-        // Gatilho Esquerdo LT (6): Aproximar Câmera / Mira (Zoom In)
+        // Gatilho Esquerdo LT (6): Armar / Mirar (Aim)
         const ltValue = gp.buttons[6] ? (gp.buttons[6].value || (gp.buttons[6].pressed ? 1 : 0)) : 0;
-        if (ltValue > 0.25 || (gp.axes[4] && gp.axes[4] > 0.3)) {
-          updateZoom(-delta * 4.5);
+        gamepadAiming = (ltValue > 0.25 || (gp.axes[4] && gp.axes[4] > 0.3));
+
+        // Gatilho Direito RT (7): Atirar
+        if (isButtonJustPressed(gp, 7)) {
+          fireActiveWeapon();
         }
 
-        // Botão Superior Esquerdo LB (4): Afastar Câmera (Zoom Out)
-        const lbPressed = gp.buttons[4] && (gp.buttons[4].pressed || gp.buttons[4].value > 0.3);
-        if (lbPressed) {
-          updateZoom(delta * 4.5);
+        // Botão RB (5): Recarregar
+        if (isButtonJustPressed(gp, 5)) {
+          reloadActiveWeapon();
         }
 
         // Botão X (2): Interagir / Coletar
@@ -3347,44 +4584,16 @@ function animate() {
           handleInteraction();
         }
 
-        // Botão B (1): Alternar Luz do Quarto (Apenas próximo ao interruptor)
-        if (isButtonJustPressed(gp, 1)) {
-          let closestEnv = null;
-          let minD = 2.8;
-          for (const envId in roomEnvironments) {
-            const env = roomEnvironments[envId];
-            if (env.switchGroup) {
-              const d = playerGroup.position.distanceTo(env.switchGroup.position);
-              if (d < minD) { minD = d; closestEnv = envId; }
-            }
-          }
-          if (closestEnv) {
-            toggleRoomEnvironmentLight(closestEnv);
-          } else {
-            if (interactionPrompt) interactionPrompt.classList.remove('hidden');
-            if (promptText) promptText.textContent = 'Aproxime-se do interruptor na parede 💡';
-            setTimeout(() => {
-              if (promptText && promptText.textContent.includes('Aproxime-se')) {
-                interactionPrompt.classList.add('hidden');
-              }
-            }, 1500);
-          }
+        // Botão B (1) em Jogo: Aproximar Câmera (Zoom In)
+        const bPressed = gp.buttons[1] && (gp.buttons[1].pressed || gp.buttons[1].value > 0.3);
+        if (bPressed) {
+          updateZoom(-delta * 4.5);
         }
 
-        // Botão Y (3): Ciclar Armas
-        if (isButtonJustPressed(gp, 3)) {
-          const wRev = weaponInventory.revolver;
-          const wSht = weaponInventory.shotgun;
-          if (equippedWeaponId === null) {
-            if (wRev.isAcquired) equipWeapon('revolver');
-            else if (wSht.isAcquired) equipWeapon('shotgun');
-          } else if (equippedWeaponId === 'revolver') {
-            if (wSht.isAcquired) equipWeapon('shotgun');
-            else equipWeapon(null);
-          } else if (equippedWeaponId === 'shotgun') {
-            if (wRev.isAcquired) equipWeapon('revolver');
-            else equipWeapon(null);
-          }
+        // Botão Y (3) em Jogo: Afastar Câmera (Zoom Out)
+        const yPressed = gp.buttons[3] && (gp.buttons[3].pressed || gp.buttons[3].value > 0.3);
+        if (yPressed) {
+          updateZoom(delta * 4.5);
         }
 
         // D-Pad Cima (12): Curar com Medicamento 💊
@@ -3437,9 +4646,60 @@ function animate() {
     }
   }
 
+  // Atualiza estado de mira (Aiming)
+  const prevAiming = isAiming;
+  isAiming = isGameStarted && !isGamePaused && !isPlayerDead && (equippedWeaponId !== null) && (gamepadAiming || mouseAiming || keyAiming);
+
+  const crosshairContainer = document.getElementById('crosshair-container');
+  if (crosshairContainer) {
+    if (isAiming) crosshairContainer.classList.add('is-aiming');
+    else crosshairContainer.classList.remove('is-aiming');
+  }
+
+  if (prevAiming !== isAiming) {
+    updateWeaponsUI();
+  }
+
   const isMoving = inputVector.lengthSq() > 0;
 
-  if (isMoving) {
+  if (isAiming) {
+    // Se estiver se movendo, gira para a direção da locomoção; se parado na mira, gira 360° para o centro da câmera/retículo
+    const targetAngle = isMoving ? Math.atan2(inputVector.x, inputVector.z) : Math.atan2(forward.x, forward.z);
+    let angleDiff = targetAngle - playerRotation;
+    while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
+    while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
+    playerRotation += angleDiff * Math.min(1.0, 16.0 * delta);
+    playerGroup.rotation.y = playerRotation;
+
+    // Movimentação tática e animação fluida durante a postura armada
+    if (isMoving) {
+      inputVector.normalize();
+      const aimSpeed = MOVE_SPEED * 0.75;
+      velocity.x += inputVector.x * ACCELERATION * delta;
+      velocity.z += inputVector.z * ACCELERATION * delta;
+      const curSpeed = Math.sqrt(velocity.x * velocity.x + velocity.z * velocity.z);
+      if (curSpeed > aimSpeed) {
+        velocity.x = (velocity.x / curSpeed) * aimSpeed;
+        velocity.z = (velocity.z / curSpeed) * aimSpeed;
+      }
+
+      if (isGrounded) {
+        walkBobTimer += delta * 12;
+        if (playerMixer) playPlayerAnim('walk', 0.15);
+        if (playerBody) playerBody.position.y = -1.0;
+      }
+    } else {
+      velocity.x -= velocity.x * FRICTION * delta;
+      velocity.z -= velocity.z * FRICTION * delta;
+      if (Math.abs(velocity.x) < 0.01) velocity.x = 0;
+      if (Math.abs(velocity.z) < 0.01) velocity.z = 0;
+
+      if (isGrounded) {
+        if (playerMixer) playPlayerAnim('aim', 0.15);
+        if (playerBody) playerBody.position.y = -1.0;
+      }
+    }
+  } else if (isMoving) {
     inputVector.normalize();
     velocity.x += inputVector.x * ACCELERATION * delta;
     velocity.z += inputVector.z * ACCELERATION * delta;
@@ -3471,7 +4731,7 @@ function animate() {
       walkBobTimer += delta * (isRunning ? 20 : 14);
       if (playerMixer) playPlayerAnim(isRunning ? 'run' : 'walk');
 
-      const useProcedural = !(selectedCharacter === 'jane' && janeHasSkeleton);
+      const useProcedural = !playerMixer;
 
       if (playerBody && useProcedural) {
         // Elevação de cada passo (bounce)
@@ -3479,12 +4739,10 @@ function animate() {
         // Ginga de ombros lateral (sway)
         playerBody.rotation.z = Math.sin(walkBobTimer * 0.5) * 0.08;
         // Inclinação corporal ao caminhar/correr (forward tilt)
-        const baseRotX = (selectedCharacter === 'jane' ? -Math.PI / 2 : 0);
-        playerBody.rotation.x = baseRotX + Math.sin(walkBobTimer) * 0.04 + 0.06;
+        playerBody.rotation.x = Math.sin(walkBobTimer) * 0.04 + 0.06;
       } else if (playerBody) {
-        // Personagem animado via FBX Mixer (não precisa de bobbing procedimental)
+        // Personagem animado via FBX Mixer (posição Y cravada em -1.0)
         playerBody.position.y = -1.0;
-        // Não forçamos rotação X ou Z para 0 aqui, pois a rotação inicial já foi configurada no onLoad.
       }
     }
   } else {
@@ -3495,14 +4753,12 @@ function animate() {
     if (Math.abs(velocity.x) < 0.01) velocity.x = 0;
     if (Math.abs(velocity.z) < 0.01) velocity.z = 0;
     if (isGrounded) {
-      const useProcedural = !(selectedCharacter === 'jane' && janeHasSkeleton);
+      const useProcedural = !playerMixer;
 
       if (playerBody && useProcedural) {
         // Respiração idle realista (subida e descida suave do peito)
         playerBody.position.y = -1.0 + Math.sin(idleAnimTimer) * 0.025;
         playerBody.rotation.z = Math.sin(idleAnimTimer * 0.5) * 0.02;
-        const baseRotX = (selectedCharacter === 'jane' ? -Math.PI / 2 : 0);
-        playerBody.rotation.x = baseRotX;
       } else if (playerBody) {
         playerBody.position.y = -1.0;
       }
@@ -3510,11 +4766,10 @@ function animate() {
   }
 
   if (!isGrounded && playerBody) {
-    const useProcedural = !(selectedCharacter === 'jane' && janeHasSkeleton);
+    const useProcedural = !playerMixer;
     if (useProcedural) {
       // Inclinação no ar durante o pulo
-      const baseRotX = (selectedCharacter === 'jane' ? -Math.PI / 2 : 0);
-      playerBody.rotation.x = baseRotX - 0.12;
+      playerBody.rotation.x = -0.12;
     }
   }
 
@@ -3543,29 +4798,107 @@ function animate() {
   playerGroup.position.copy(newPos);
 
   if (isThirdPerson && isGameStarted) {
+    const playerTarget = playerGroup.position.clone().add(new THREE.Vector3(0, 1.2, 0));
+
     const offsetX = cameraDistance * Math.sin(cameraYaw) * Math.cos(cameraPitch);
     const offsetY = cameraDistance * Math.sin(cameraPitch);
     const offsetZ = cameraDistance * Math.cos(cameraYaw) * Math.cos(cameraPitch);
 
-    const targetCameraPos = new THREE.Vector3(
+    let targetCameraPos = new THREE.Vector3(
       playerGroup.position.x + offsetX,
       playerGroup.position.y + offsetY + 1.2,
       playerGroup.position.z + offsetZ
     );
 
-    // No corredor central, impede a câmera de penetrar as paredes laterais (z = ±3.6)
+    // 1. Raycast de Colisão da Câmera (Spring-Arm inteligente: previne a câmera de atravessar paredes)
+    const camDir = targetCameraPos.clone().sub(playerTarget);
+    const desiredCamDist = camDir.length();
+    if (desiredCamDist > 0.05) {
+      camDir.normalize();
+      cameraRaycaster.set(playerTarget, camDir);
+      cameraRaycaster.far = desiredCamDist;
+      cameraRaycaster.near = 0.05;
+
+      const camWallHits = cameraRaycaster.intersectObjects(allWallMeshes, false);
+      if (camWallHits.length > 0) {
+        const closestHit = camWallHits[0];
+        const safeDist = Math.max(0.85, closestHit.distance - 0.28);
+        targetCameraPos.copy(playerTarget).addScaledVector(camDir, safeDist);
+      }
+    }
+
+    // 2. Limites perimétricos para garantir que a câmera não saia do hotel
     const curRoomId = getRoomIdAtPosition(playerGroup.position.x, playerGroup.position.z);
     if (curRoomId === 'corridor') {
       targetCameraPos.z = THREE.MathUtils.clamp(targetCameraPos.z, -2.8, 2.8);
       targetCameraPos.x = THREE.MathUtils.clamp(targetCameraPos.x, -28.5, 28.5);
+    } else if (curRoomId !== 'test_room') {
+      targetCameraPos.x = THREE.MathUtils.clamp(targetCameraPos.x, -29.2, 29.2);
+      targetCameraPos.z = THREE.MathUtils.clamp(targetCameraPos.z, -23.2, 23.2);
+      targetCameraPos.y = THREE.MathUtils.clamp(targetCameraPos.y, 0.45, WALL_HEIGHT - 0.3);
     }
 
-    currentCameraPos.lerp(targetCameraPos, Math.min(1.0, 10.0 * delta));
+    currentCameraPos.lerp(targetCameraPos, Math.min(1.0, 14.0 * delta));
     camera.position.copy(currentCameraPos);
 
     const lookTarget = playerGroup.position.clone().add(new THREE.Vector3(0, 1.2, 0));
-    currentLookAt.lerp(lookTarget, Math.min(1.0, 12.0 * delta));
+    currentLookAt.lerp(lookTarget, Math.min(1.0, 14.0 * delta));
     camera.lookAt(currentLookAt);
+
+    // 3. Sistema de Oclusão e Escondimento Dinâmico de Paredes (Wall Transparency Fade)
+    // Marca todas as paredes para voltarem a opacas (1.0)
+    for (const wall of allWallMeshes) {
+      wall.userData.targetOpacity = 1.0;
+    }
+
+    // Dispara raio da câmera até o jogador para detectar qualquer parede bloqueando a visão
+    const toCamVec = camera.position.clone().sub(playerTarget);
+    const actualDist = toCamVec.length();
+    if (actualDist > 0.05) {
+      toCamVec.normalize();
+      cameraRaycaster.set(playerTarget, toCamVec);
+      cameraRaycaster.far = actualDist + 0.35;
+      cameraRaycaster.near = 0.05;
+
+      const occludingHits = cameraRaycaster.intersectObjects(allWallMeshes, false);
+      for (const hit of occludingHits) {
+        if (hit.object && hit.object.userData && hit.object.userData.isWall) {
+          hit.object.userData.targetOpacity = 0.08;
+          if (hit.object.userData.trim) hit.object.userData.trim.userData.targetOpacity = 0.08;
+          if (hit.object.userData.parentWall) hit.object.userData.parentWall.userData.targetOpacity = 0.08;
+        }
+      }
+    }
+
+    // Também esconde qualquer parede muito próxima da câmera (< 0.75m) para evitar visão obstruída
+    const camPoint = camera.position;
+    for (const wall of allWallMeshes) {
+      if (wall.geometry && wall.geometry.parameters) {
+        const p = wall.geometry.parameters;
+        const halfW = (p.width || 1) / 2 + 0.45;
+        const halfH = (p.height || 1) / 2 + 0.45;
+        const halfD = (p.depth || 1) / 2 + 0.45;
+        const isNear = (
+          camPoint.x >= wall.position.x - halfW && camPoint.x <= wall.position.x + halfW &&
+          camPoint.y >= wall.position.y - halfH && camPoint.y <= wall.position.y + halfH &&
+          camPoint.z >= wall.position.z - halfD && camPoint.z <= wall.position.z + halfD
+        );
+        if (isNear) {
+          wall.userData.targetOpacity = Math.min(wall.userData.targetOpacity !== undefined ? wall.userData.targetOpacity : 1.0, 0.08);
+          if (wall.userData.trim) wall.userData.trim.userData.targetOpacity = 0.08;
+          if (wall.userData.parentWall) wall.userData.parentWall.userData.targetOpacity = 0.08;
+        }
+      }
+    }
+
+    // Interpola a opacidade suavemente em tempo real
+    for (const wall of allWallMeshes) {
+      if (wall.material) {
+        const targetOp = wall.userData.targetOpacity !== undefined ? wall.userData.targetOpacity : 1.0;
+        wall.material.opacity = THREE.MathUtils.lerp(wall.material.opacity, targetOp, delta * 14.0);
+        wall.material.transparent = wall.material.opacity < 0.99;
+      }
+    }
   } else {
     orbitControls.target.copy(playerGroup.position);
     orbitControls.update();
@@ -3583,18 +4916,58 @@ function animate() {
     grandExitGate.pivotRight.rotation.y = -grandExitGate.currentAngle;
   }
 
+  // --- SISTEMA DE FALHA ELÉTRICA / TERROR NO CORREDOR ---
+  const corridorEnv = roomEnvironments['corridor'];
+  if (corridorEnv && isGameStarted && !isGamePaused) {
+    if (corridorEnv.isLit) {
+      corridorFlickerTimer += delta;
+
+      if (!corridorFlickerBugActive) {
+        if (corridorFlickerTimer >= corridorNextFlickerTime) {
+          corridorFlickerBugActive = true;
+          corridorFlickerTimer = 0;
+          // Duração da falha apagada: entre 3.5s e 8.0s
+          corridorBugDuration = 3.5 + Math.random() * 4.5;
+        }
+      } else {
+        if (corridorFlickerTimer >= corridorBugDuration) {
+          corridorFlickerBugActive = false;
+          corridorFlickerTimer = 0;
+          // Próximo tempo acesa antes da próxima falha: entre 5.0s e 12.0s
+          corridorNextFlickerTime = 5.0 + Math.random() * 7.0;
+        }
+      }
+    } else {
+      corridorFlickerBugActive = false;
+      corridorFlickerTimer = 0;
+      corridorNextFlickerTime = 5.0 + Math.random() * 6.0;
+    }
+  }
+
   // Luzes dos ambientes
   for (const envId in roomEnvironments) {
     const env = roomEnvironments[envId];
-    const targetMultiplier = env.isLit ? 1.0 : 0.0;
+    let targetMultiplier = env.isLit ? 1.0 : 0.0;
+
+    // Efeito de oscilação / curto-circuito no corredor central
+    if (envId === 'corridor' && env.isLit && corridorFlickerBugActive) {
+      const timeInBug = corridorFlickerTimer;
+      const timeRemaining = corridorBugDuration - corridorFlickerTimer;
+      if (timeInBug < 0.6 || timeRemaining < 0.6) {
+        targetMultiplier = Math.random() > 0.5 ? (Math.random() * 0.8) : 0.0;
+      } else {
+        targetMultiplier = 0.0;
+      }
+    }
+
     for (const lightObj of env.lights) {
       const maxI = lightObj.userData.maxIntensity || 1.0;
-      lightObj.intensity = THREE.MathUtils.lerp(lightObj.intensity, maxI * targetMultiplier, delta * 8.0);
+      lightObj.intensity = THREE.MathUtils.lerp(lightObj.intensity, maxI * targetMultiplier, delta * 12.0);
     }
     if (env.lampMats) {
-      const targetEmissive = env.isLit ? 2.5 : 0.0;
+      const targetEmissive = (env.isLit && targetMultiplier > 0.05) ? (2.5 * targetMultiplier) : 0.0;
       for (const m of env.lampMats) {
-        m.emissiveIntensity = THREE.MathUtils.lerp(m.emissiveIntensity, targetEmissive, delta * 8.0);
+        m.emissiveIntensity = THREE.MathUtils.lerp(m.emissiveIntensity, targetEmissive, delta * 12.0);
       }
     }
   }
@@ -3602,8 +4975,12 @@ function animate() {
   // Prompts HUD
   const currentEnvId = getRoomIdAtPosition(playerGroup.position.x, playerGroup.position.z);
   if (statRoom) {
-    const env = roomEnvironments[currentEnvId];
-    statRoom.textContent = env ? `${env.name} 🏨` : 'Corredor Central 🏨';
+    if (currentEnvId === 'test_room') {
+      statRoom.textContent = 'Sala de Testes 🧪';
+    } else {
+      const env = roomEnvironments[currentEnvId];
+      statRoom.textContent = env ? `${env.name} 🏨` : 'Corredor Central 🏨';
+    }
   }
   updateHUDLightStat();
 
