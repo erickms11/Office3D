@@ -2266,11 +2266,25 @@ assetManager.manager.onLoad = () => {
     charModel.position.set(0, -1.0, 0);
 
     charModel.traverse(c => {
-      if (c.isMesh) { c.castShadow = true; c.receiveShadow = true; }
+      if (c.isMesh) { 
+        c.castShadow = true; 
+        c.receiveShadow = true; 
+        
+        // Esconder armas embutidas nos modelos originais (como rifles/pistolas que vêm colados no FBX)
+        const name = c.name.toLowerCase();
+        if (name.includes('weapon') || name.includes('gun') || name.includes('rifle') || name.includes('pistol') || name.includes('shotgun') || name.includes('sword') || name.includes('assault')) {
+          c.visible = false;
+        }
+      }
       if (c.isSkinnedMesh) hasSkeleton = true;
       if (c.isCamera || c.isLight) toRemove.push(c);
       if (c.isBone && c.name) {
         c.name = c.name.replace(/.*mixamorig/g, 'mixamorig');
+        // Se a personagem (como a Jane) tiver ossos sem o prefixo padrão do Mixamo, nós adicionamos
+        if (!c.name.startsWith('mixamorig')) {
+          // A primeira letra do osso deve ser maiúscula para casar com mixamorigHips, mixamorigSpine, etc
+          c.name = 'mixamorig' + c.name.charAt(0).toUpperCase() + c.name.slice(1);
+        }
         if (c.name === 'mixamorigRightHand') rightHand = c;
       }
     });
@@ -2338,8 +2352,8 @@ assetManager.manager.onLoad = () => {
   // Atualiza visibilidade conforme seleção atual
   updateActiveCharacterModel();
 
-  // Equipa a shotgun automaticamente para facilitar os testes
-  equipWeapon('shotgun');
+  // Garante que os personagens comecem desarmados
+  equipWeapon(null);
 
   console.log("Modelos e animações configurados com sucesso!");
 };
