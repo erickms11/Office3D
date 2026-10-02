@@ -25,7 +25,6 @@ class AssetManager {
     // Loaders Específicos
     this.gltfLoader = new GLTFLoader(this.manager);
     this.fbxLoader = new FBXLoader(this.manager);
-    this.fbxLoader.setResourcePath('assets/models/jane/');
     this.textureLoader = new THREE.TextureLoader(this.manager);
     this.audioLoader = new THREE.AudioLoader(this.manager);
   }
