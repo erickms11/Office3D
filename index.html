@@ -11,10 +11,10 @@
     <script type="importmap">
       {
         "imports": {
-          "three": "https://unpkg.com/three@0.168.0/build/three.module.js",
-          "three/addons/": "https://unpkg.com/three@0.168.0/examples/jsm/",
-          "three/examples/jsm/": "https://unpkg.com/three@0.168.0/examples/jsm/",
-          "three/examples/jsm/controls/OrbitControls.js": "https://unpkg.com/three@0.168.0/examples/jsm/controls/OrbitControls.js"
+          "three": "./node_modules/three/build/three.module.js",
+          "three/addons/": "./node_modules/three/examples/jsm/",
+          "three/examples/jsm/": "./node_modules/three/examples/jsm/",
+          "three/examples/jsm/controls/OrbitControls.js": "./node_modules/three/examples/jsm/controls/OrbitControls.js"
         }
       }
     </script>
@@ -244,8 +244,18 @@
       <span id="prompt-text">Interagir com Interruptor</span>
     </div>
 
+    <!-- Tela de Carregamento (Exibida enquanto os assets são baixados) -->
+    <div id="loading-screen" style="position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; background: #000; z-index: 10000; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #cbd5e1; font-family: 'Outfit', sans-serif;">
+      <div style="font-size: 3rem; margin-bottom: 20px;">☣️</div>
+      <h1 style="font-size: 2.5rem; letter-spacing: 4px; font-weight: 800; text-transform: uppercase; margin-bottom: 10px; color: #fff;">Outbreak <span style="color: #38bdf8;">Hotel</span></h1>
+      <p style="font-size: 1.2rem; color: #94a3b8; font-weight: 500;">CARREGANDO ASSETS... <span id="loading-progress" style="color: #facc15; font-weight: bold;">0%</span></p>
+      <div style="width: 300px; height: 8px; background: rgba(255,255,255,0.1); border-radius: 4px; margin-top: 20px; overflow: hidden; position: relative;">
+        <div id="loading-bar" style="width: 0%; height: 100%; background: #38bdf8; border-radius: 4px; transition: width 0.2s;"></div>
+      </div>
+    </div>
+
     <!-- Modal de Início (Menu Principal do Jogo com Telas Navegáveis) -->
-    <div id="start-menu-modal">
+    <div id="start-menu-modal" class="hidden">
       <div class="start-menu-card glass-panel">
         <!-- TELA 1: Menu Principal -->
         <div id="menu-screen-main" class="menu-screen">
@@ -256,6 +266,19 @@
           </div>
 
           <div class="menu-actions-stack">
+            <!-- Seleção de Personagens -->
+            <div class="character-selection" style="margin-bottom: 20px; text-align: center; background: rgba(0,0,0,0.4); padding: 15px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1);">
+              <h3 style="color: #cbd5e1; margin-bottom: 12px; font-size: 0.9rem; letter-spacing: 2px;">SELECIONE SEU SOBREVIVENTE</h3>
+              <div style="display: flex; gap: 15px; justify-content: center;">
+                <button id="btn-select-jake" class="btn-char-select active" style="padding: 10px 20px; border: 2px solid #38bdf8; background: rgba(56, 189, 248, 0.2); color: #fff; cursor: pointer; border-radius: 8px; font-weight: bold; transition: 0.2s;">
+                  👨 JAKE
+                </button>
+                <button id="btn-select-jane" class="btn-char-select" style="padding: 10px 20px; border: 2px solid transparent; background: rgba(255, 255, 255, 0.05); color: #94a3b8; cursor: pointer; border-radius: 8px; font-weight: bold; transition: 0.2s;">
+                  👩 JANE
+                </button>
+              </div>
+            </div>
+
             <button id="btn-start-game" class="btn-start-game">
               <span>INICIAR JOGO</span>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">

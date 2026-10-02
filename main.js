@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import { assetManager } from './AssetManager.js';
 
 // --- CONFIGURAÇÃO E CONSTANTES DO HOTEL ---
 const ROOM_WIDTH = 60;
@@ -51,12 +52,20 @@ let isThirdPerson = true;
 
 // --- EFEITOS SONOROS SINTETIZADOS VIA WEB AUDIO API ---
 // Desativado temporariamente conforme feedback
-const AUDIO_ENABLED = false;
+const AUDIO_ENABLED = true; // Habilitando para testar se o travamento parou
+
+let globalAudioCtx = null;
+function getAudioContext() {
+  if (!globalAudioCtx) {
+    globalAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  }
+  return globalAudioCtx;
+}
 
 function playSwitchSound(state) {
   if (!AUDIO_ENABLED) return;
   try {
-    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const ctx = getAudioContext();
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
     osc.type = 'sine';
@@ -68,13 +77,13 @@ function playSwitchSound(state) {
     gain.connect(ctx.destination);
     osc.start();
     osc.stop(ctx.currentTime + 0.06);
-  } catch (e) {}
+  } catch (e) { }
 }
 
 function playDoorSound(isOpen) {
   if (!AUDIO_ENABLED) return;
   try {
-    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const ctx = getAudioContext();
     const now = ctx.currentTime;
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
@@ -85,13 +94,14 @@ function playDoorSound(isOpen) {
     gain.gain.exponentialRampToValueAtTime(0.01, now + 0.22);
     osc.connect(gain); gain.connect(ctx.destination);
     osc.start(now); osc.stop(now + 0.23);
-  } catch (e) {}
+  } catch (e) { }
 }
 
 function playJumpSound() {
+  if (selectedCharacter === 'jane') playPlayerAnim('jump', 0.1);
   if (!AUDIO_ENABLED) return;
   try {
-    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const ctx = getAudioContext();
     const now = ctx.currentTime;
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
@@ -104,13 +114,13 @@ function playJumpSound() {
     gain.connect(ctx.destination);
     osc.start(now);
     osc.stop(now + 0.16);
-  } catch (e) {}
+  } catch (e) { }
 }
 
 function playKeySound() {
   if (!AUDIO_ENABLED) return;
   try {
-    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const ctx = getAudioContext();
     const now = ctx.currentTime;
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
@@ -123,13 +133,13 @@ function playKeySound() {
     gain.connect(ctx.destination);
     osc.start(now);
     osc.stop(now + 0.24);
-  } catch (e) {}
+  } catch (e) { }
 }
 
 function playLockedSound() {
   if (!AUDIO_ENABLED) return;
   try {
-    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const ctx = getAudioContext();
     const now = ctx.currentTime;
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
@@ -142,13 +152,13 @@ function playLockedSound() {
     gain.connect(ctx.destination);
     osc.start(now);
     osc.stop(now + 0.2);
-  } catch (e) {}
+  } catch (e) { }
 }
 
 function playVictorySound() {
   if (!AUDIO_ENABLED) return;
   try {
-    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const ctx = getAudioContext();
     const notes = [523.25, 659.25, 783.99, 1046.5];
     notes.forEach((freq, idx) => {
       const now = ctx.currentTime + idx * 0.12;
@@ -163,13 +173,13 @@ function playVictorySound() {
       osc.start(now);
       osc.stop(now + 0.3);
     });
-  } catch (e) {}
+  } catch (e) { }
 }
 
 function playGunshotSound(weaponType) {
   if (!AUDIO_ENABLED) return;
   try {
-    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const ctx = getAudioContext();
     const now = ctx.currentTime;
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
@@ -191,13 +201,13 @@ function playGunshotSound(weaponType) {
     gain.connect(ctx.destination);
     osc.start(now);
     osc.stop(now + 0.26);
-  } catch (e) {}
+  } catch (e) { }
 }
 
 function playReloadSound() {
   if (!AUDIO_ENABLED) return;
   try {
-    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const ctx = getAudioContext();
     const now = ctx.currentTime;
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
@@ -210,13 +220,13 @@ function playReloadSound() {
     gain.connect(ctx.destination);
     osc.start(now);
     osc.stop(now + 0.16);
-  } catch (e) {}
+  } catch (e) { }
 }
 
 function playDryFireSound() {
   if (!AUDIO_ENABLED) return;
   try {
-    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const ctx = getAudioContext();
     const now = ctx.currentTime;
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
@@ -228,13 +238,13 @@ function playDryFireSound() {
     gain.connect(ctx.destination);
     osc.start(now);
     osc.stop(now + 0.06);
-  } catch (e) {}
+  } catch (e) { }
 }
 
 function playAmmoPickupSound() {
   if (!AUDIO_ENABLED) return;
   try {
-    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const ctx = getAudioContext();
     const now = ctx.currentTime;
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
@@ -247,13 +257,13 @@ function playAmmoPickupSound() {
     gain.connect(ctx.destination);
     osc.start(now);
     osc.stop(now + 0.16);
-  } catch (e) {}
+  } catch (e) { }
 }
 
 function playHurtSound() {
   if (!AUDIO_ENABLED) return;
   try {
-    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const ctx = getAudioContext();
     const now = ctx.currentTime;
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
@@ -266,13 +276,13 @@ function playHurtSound() {
     gain.connect(ctx.destination);
     osc.start(now);
     osc.stop(now + 0.3);
-  } catch (e) {}
+  } catch (e) { }
 }
 
 function playHealSound() {
   if (!AUDIO_ENABLED) return;
   try {
-    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const ctx = getAudioContext();
     const freqs = [330, 440, 554.37, 659.25, 880];
     freqs.forEach((freq, idx) => {
       const now = ctx.currentTime + idx * 0.07;
@@ -288,13 +298,13 @@ function playHealSound() {
       osc.start(now);
       osc.stop(now + 0.22);
     });
-  } catch (e) {}
+  } catch (e) { }
 }
 
 function playZombieHitSound() {
   if (!AUDIO_ENABLED) return;
   try {
-    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const ctx = getAudioContext();
     const now = ctx.currentTime;
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
@@ -307,13 +317,13 @@ function playZombieHitSound() {
     gain.connect(ctx.destination);
     osc.start(now);
     osc.stop(now + 0.18);
-  } catch (e) {}
+  } catch (e) { }
 }
 
 function playZombieGroanSound() {
   if (!AUDIO_ENABLED) return;
   try {
-    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const ctx = getAudioContext();
     const now = ctx.currentTime;
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
@@ -327,13 +337,13 @@ function playZombieGroanSound() {
     gain.connect(ctx.destination);
     osc.start(now);
     osc.stop(now + 0.7);
-  } catch (e) {}
+  } catch (e) { }
 }
 
 function playZombieDeathSound(isBoss = false) {
   if (!AUDIO_ENABLED) return;
   try {
-    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const ctx = getAudioContext();
     const now = ctx.currentTime;
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
@@ -346,13 +356,13 @@ function playZombieDeathSound(isBoss = false) {
     gain.connect(ctx.destination);
     osc.start(now);
     osc.stop(now + (isBoss ? 1.35 : 0.55));
-  } catch (e) {}
+  } catch (e) { }
 }
 
 function playBossRoarSound() {
   if (!AUDIO_ENABLED) return;
   try {
-    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const ctx = getAudioContext();
     const now = ctx.currentTime;
     const osc1 = ctx.createOscillator();
     const osc2 = ctx.createOscillator();
@@ -377,7 +387,7 @@ function playBossRoarSound() {
 
     osc1.start(now); osc2.start(now);
     osc1.stop(now + 1.0); osc2.stop(now + 1.0);
-  } catch (e) {}
+  } catch (e) { }
 }
 
 // --- SISTEMA DE ILUMINAÇÃO GERAL E POR AMBIENTE ---
@@ -1080,10 +1090,10 @@ const weaponInventory = {
     id: 'revolver',
     name: 'Revólver 🔫',
     badgeId: 'badge-weapon-revolver',
-    isAcquired: false,
+    isAcquired: true,
     maxMag: 6,
-    loadedAmmo: 0,
-    reserveAmmo: 0,
+    loadedAmmo: 6,
+    reserveAmmo: 999,
     color: 0x94a3b8,
     mesh: null,
   },
@@ -1091,10 +1101,10 @@ const weaponInventory = {
     id: 'shotgun',
     name: 'Shotgun 💥',
     badgeId: 'badge-weapon-shotgun',
-    isAcquired: false,
+    isAcquired: true,
     maxMag: 4,
-    loadedAmmo: 0,
-    reserveAmmo: 0,
+    loadedAmmo: 4,
+    reserveAmmo: 999,
     color: 0xf97316,
     mesh: null,
   },
@@ -1311,6 +1321,15 @@ function equipWeapon(weaponId) {
   equippedWeaponId = weaponId;
   weaponInventory.revolver.mesh.visible = (weaponId === 'revolver');
   weaponInventory.shotgun.mesh.visible = (weaponId === 'shotgun');
+
+  if (weaponId === 'revolver') currentWeaponStance = 'pistol';
+  else if (weaponId === 'shotgun') currentWeaponStance = 'shotgun';
+  else currentWeaponStance = 'unarmed';
+
+  // Força atualização da animação atual baseada no stance
+  if (activePlayerAction) {
+    playPlayerAnim(keys.shift ? 'run' : (velocity.lengthSq() > 0 ? 'walk' : 'idle'), 0.3);
+  }
 
   updateWeaponsUI();
 }
@@ -1624,6 +1643,7 @@ function fireActiveWeapon() {
   if (weapon.loadedAmmo > 0) {
     weapon.loadedAmmo--;
     playGunshotSound(equippedWeaponId);
+    playPlayerAnim('shoot', 0.1);
 
     // Dano da arma
     const damage = equippedWeaponId === 'shotgun' ? 90 : 35;
@@ -2050,27 +2070,17 @@ createBench(24.0, 18.0, -Math.PI / 2, 'Banco Observação Q106');
 
 // --- O PERSONAGEM (JOGADOR) ---
 const playerGroup = new THREE.Group();
-playerGroup.position.set(0, 1.0, 0);
+playerGroup.position.set(25, 1.0, 0); // Altura do colisor original, próximo da Porta Mestre
 
-const capsuleRadius = 0.45;
-const capsuleLength = 0.8;
-const playerBodyGeo = new THREE.CapsuleGeometry(capsuleRadius, capsuleLength, 16, 32);
-const playerBodyMat = new THREE.MeshStandardMaterial({ color: 0x0ea5e9, roughness: 0.25, metalness: 0.3 });
-const playerBody = new THREE.Mesh(playerBodyGeo, playerBodyMat);
-playerBody.castShadow = true; playerBody.receiveShadow = true;
-playerGroup.add(playerBody);
-
-const visorGeo = new THREE.BoxGeometry(0.5, 0.22, 0.35);
-const visorMat = new THREE.MeshStandardMaterial({ color: 0x030712, emissive: 0x38bdf8, emissiveIntensity: 0.7, roughness: 0.1, metalness: 0.9 });
-const visor = new THREE.Mesh(visorGeo, visorMat);
-visor.position.set(0, 0.35, 0.36); visor.castShadow = true;
-playerGroup.add(visor);
-
-const backpackGeo = new THREE.BoxGeometry(0.48, 0.6, 0.22);
-const backpackMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, metalness: 0.5, roughness: 0.4 });
-const backpack = new THREE.Mesh(backpackGeo, backpackMat);
-backpack.position.set(0, 0.1, -0.42); backpack.castShadow = true;
-playerGroup.add(backpack);
+// Modelo fallback (garante visibilidade mesmo durante o carregamento)
+const fallbackGeo = new THREE.CapsuleGeometry(0.35, 1.1, 4, 8);
+const fallbackMat = new THREE.MeshStandardMaterial({ color: 0x38bdf8, roughness: 0.3, metalness: 0.2 });
+const fallbackPlayerMesh = new THREE.Mesh(fallbackGeo, fallbackMat);
+fallbackPlayerMesh.position.set(0, -0.1, 0);
+fallbackPlayerMesh.castShadow = true;
+fallbackPlayerMesh.receiveShadow = true;
+playerGroup.add(fallbackPlayerMesh);
+let playerBody = fallbackPlayerMesh;
 
 const playerLight = new THREE.PointLight(0x38bdf8, 0.8, 4);
 playerLight.position.set(0, -0.4, 0);
@@ -2079,19 +2089,276 @@ playerGroup.add(playerLight);
 playerGroup.add(playerWeaponGroup);
 scene.add(playerGroup);
 
+// --- SISTEMA DE ANIMAÇÃO E MODELOS DO JOGADOR ---
+let selectedCharacter = 'jake'; // 'jake' ou 'jane'
+let playerMixer = null;
+let playerActions = {};
+let activePlayerAction = null;
+let jakeModelInstance = null;
+let janeModelInstance = null;
+let jakeHasSkeleton = false;
+let janeHasSkeleton = false;
+let jakeRightHand = null;
+let janeRightHand = null;
+let jakeMixer = null;
+let janeMixer = null;
+let jakeActions = {};
+let janeActions = {};
+let currentWeaponStance = 'unarmed'; // 'unarmed', 'pistol', 'shotgun'
+
+function updateActiveCharacterModel() {
+  const activeChar = selectedCharacter || 'jake';
+
+  if (jakeModelInstance) jakeModelInstance.visible = (activeChar === 'jake');
+  if (janeModelInstance) janeModelInstance.visible = (activeChar === 'jane');
+
+  if (activeChar === 'jane' && janeModelInstance) {
+    playerBody = janeModelInstance;
+    playerMixer = janeMixer;
+    playerActions = janeActions;
+    if (janeRightHand) janeRightHand.add(playerWeaponGroup);
+    if (fallbackPlayerMesh) fallbackPlayerMesh.visible = false;
+  } else if (activeChar === 'jake' && jakeModelInstance) {
+    playerBody = jakeModelInstance;
+    playerMixer = jakeMixer;
+    playerActions = jakeActions;
+    if (jakeRightHand) jakeRightHand.add(playerWeaponGroup);
+    if (fallbackPlayerMesh) fallbackPlayerMesh.visible = false;
+  } else {
+    if (fallbackPlayerMesh) {
+      fallbackPlayerMesh.visible = true;
+      playerBody = fallbackPlayerMesh;
+    }
+  }
+
+  // Tocar idle animation caso haja mixer válido
+  if (playerMixer && playerActions['idle']) {
+    playPlayerAnim('idle', 0.1);
+  }
+}
+
+function playPlayerAnim(actionName, duration = 0.2) {
+  let mappedAction = actionName;
+
+  if (currentWeaponStance === 'pistol') {
+    if (actionName === 'idle') mappedAction = 'pistol_idle';
+    if (actionName === 'walk') mappedAction = 'pistol_walk';
+    if (actionName === 'run') mappedAction = 'pistol_run';
+  } else if (currentWeaponStance === 'shotgun') {
+    if (actionName === 'idle') mappedAction = 'rifle_idle';
+    if (actionName === 'walk') mappedAction = 'rifle_run'; // Usando run como walk pra rifle
+    if (actionName === 'run') mappedAction = 'rifle_run';
+    if (actionName === 'shoot') mappedAction = 'rifle_shoot';
+  }
+
+  if (!playerMixer || !playerActions[mappedAction]) {
+    mappedAction = actionName; // fallback
+  }
+
+  if (!playerMixer || !playerActions[mappedAction]) return;
+  const nextAction = playerActions[mappedAction];
+  if (nextAction === activePlayerAction) return;
+
+  nextAction.reset().fadeIn(duration).play();
+  if (activePlayerAction) {
+    activePlayerAction.fadeOut(duration);
+  }
+  activePlayerAction = nextAction;
+}
+
+// Carregar o modelo glb do Jake (antigo) e FBX da Jane
+assetManager.loadFBX('jake', 'assets/models/jake/jake.fbx');
+assetManager.loadFBX('jane', 'assets/models/jane/jane.fbx');
+
+// Carregar Animações FBX
+assetManager.loadFBXAnimation('idle', 'assets/animacoes/Idle.fbx');
+assetManager.loadFBXAnimation('walk', 'assets/animacoes/Walking.fbx');
+assetManager.loadFBXAnimation('run', 'assets/animacoes/run.fbx');
+assetManager.loadFBXAnimation('jump', 'assets/animacoes/jump.fbx');
+assetManager.loadFBXAnimation('shoot', 'assets/animacoes/Pistol_Shooting.fbx');
+assetManager.loadFBXAnimation('reload', 'assets/animacoes/Reloading.fbx');
+assetManager.loadFBXAnimation('pistol_idle', 'assets/animacoes/Pistol Idle.fbx');
+assetManager.loadFBXAnimation('pistol_walk', 'assets/animacoes/Pistol Walk.fbx');
+assetManager.loadFBXAnimation('pistol_run', 'assets/animacoes/Pistol Run.fbx');
+assetManager.loadFBXAnimation('rifle_idle', 'assets/animacoes/Rifle Idle.fbx');
+assetManager.loadFBXAnimation('rifle_run', 'assets/animacoes/Rifle Run.fbx');
+assetManager.loadFBXAnimation('rifle_shoot', 'assets/animacoes/Firing Rifle.fbx');
+assetManager.loadModel('pistol', 'assets/models/pistol.glb');
+assetManager.loadModel('shotgun', 'assets/models/shotgun.glb');
+
+assetManager.manager.onProgress = (url, itemsLoaded, itemsTotal) => {
+  const loadingProgress = document.getElementById('loading-progress');
+  const loadingBar = document.getElementById('loading-bar');
+  if (loadingProgress && loadingBar) {
+    const percent = Math.floor((itemsLoaded / itemsTotal) * 100);
+    loadingProgress.textContent = `${percent}%`;
+    loadingBar.style.width = `${percent}%`;
+  }
+};
+
+assetManager.manager.onLoad = () => {
+  // Esconder tela de carregamento e mostrar o menu
+  const loadingScreen = document.getElementById('loading-screen');
+  if (loadingScreen) loadingScreen.style.display = 'none';
+  const startModal = document.getElementById('start-menu-modal');
+  if (startModal) startModal.classList.remove('hidden');
+
+  // Habilitar a câmera rodando em volta do jogador no menu
+  orbitControls.enabled = true;
+  orbitControls.autoRotate = true;
+  orbitControls.autoRotateSpeed = 1.0;
+
+  playerWeaponGroup.position.set(0, 0, 0);
+  playerWeaponGroup.rotation.set(Math.PI / 2, Math.PI / 2, 0); // Ajuste Mixamo
+  
+  const PISTOL_ROT_X = THREE.MathUtils.degToRad(-70);
+  const PISTOL_ROT_Y = THREE.MathUtils.degToRad(90);
+  const PISTOL_ROT_Z = THREE.MathUtils.degToRad(180);
+  const PISTOL_POS_X = 15;
+  const PISTOL_POS_Y = -2;
+  const PISTOL_POS_Z = 8;
+
+  if (assetManager.models['pistol']) {
+    const pModel = assetManager.models['pistol'].clone();
+    weaponInventory.revolver.mesh.children.forEach(ch => ch.visible = false);
+    pModel.scale.set(1.25, 1.25, 1.25);
+    pModel.rotation.set(PISTOL_ROT_X, PISTOL_ROT_Y, PISTOL_ROT_Z);
+    pModel.position.set(PISTOL_POS_X, PISTOL_POS_Y, PISTOL_POS_Z);
+    weaponInventory.revolver.mesh.add(pModel);
+  }
+  
+  if (assetManager.models['shotgun']) {
+    const sModel = assetManager.models['shotgun'].clone();
+    weaponInventory.shotgun.mesh.children.forEach(ch => ch.visible = false);
+    sModel.scale.set(0.85, 0.85, 0.85);
+    sModel.rotation.set(PISTOL_ROT_X, PISTOL_ROT_Y, PISTOL_ROT_Z);
+    sModel.position.set(PISTOL_POS_X, PISTOL_POS_Y, PISTOL_POS_Z);
+    weaponInventory.shotgun.mesh.add(sModel);
+  }
+
+  // --- ATUALIZAÇÃO DE ARMAS COLETÁVEIS NO CHÃO ---
+  collectibleWeapons.forEach(wObj => {
+    if (wObj.id === 'revolver' && assetManager.models['pistol']) {
+      wObj.group.children.forEach(ch => { if (ch.isMesh && (!ch.geometry || ch.geometry.type !== 'RingGeometry')) ch.visible = false; });
+      const pModel = assetManager.models['pistol'].clone();
+      pModel.scale.set(0.04, 0.04, 0.04);
+      pModel.position.set(0, 0.15, 0);
+      wObj.group.add(pModel);
+    } else if (wObj.id === 'shotgun' && assetManager.models['shotgun']) {
+      wObj.group.children.forEach(ch => { if (ch.isMesh && (!ch.geometry || ch.geometry.type !== 'RingGeometry')) ch.visible = false; });
+      const sModel = assetManager.models['shotgun'].clone();
+      sModel.scale.set(0.04, 0.04, 0.04);
+      sModel.position.set(0, 0.15, 0);
+      wObj.group.add(sModel);
+    }
+  });
+
+  // --- FUNÇÃO DE SETUP DE PERSONAGEM (JAKE E JANE) ---
+  const setupCharacter = (modelKey) => {
+    const charModel = assetManager.models[modelKey];
+    if (!charModel) return null;
+
+    let hasSkeleton = false;
+    let rightHand = null;
+    const toRemove = [];
+
+    charModel.scale.set(0.018, 0.018, 0.018);
+    charModel.position.set(0, -1.0, 0);
+
+    charModel.traverse(c => {
+      if (c.isMesh) { c.castShadow = true; c.receiveShadow = true; }
+      if (c.isSkinnedMesh) hasSkeleton = true;
+      if (c.isCamera || c.isLight) toRemove.push(c);
+      if (c.isBone && c.name) {
+        c.name = c.name.replace(/.*mixamorig/g, 'mixamorig');
+        if (c.name === 'mixamorigRightHand') rightHand = c;
+      }
+    });
+
+    toRemove.forEach(c => { if (c.parent) c.parent.remove(c); });
+
+    if (hasSkeleton) {
+      charModel.rotation.set(0, 0, 0);
+    } else {
+      charModel.rotation.set(-Math.PI / 2, 0, Math.PI);
+    }
+
+    playerGroup.add(charModel);
+
+    // Inicializar Mixer
+    let mixer = null;
+    let actions = {};
+    if (hasSkeleton) {
+      mixer = new THREE.AnimationMixer(charModel);
+      const anims = ['idle', 'walk', 'run', 'jump', 'shoot', 'reload', 'pistol_idle', 'pistol_walk', 'pistol_run', 'rifle_idle', 'rifle_run', 'rifle_shoot'];
+      anims.forEach(animName => {
+        const clip = assetManager.getAnimation(animName);
+        if (clip && clip.tracks) {
+          // Clona o clip para evitar conflitos entre as instâncias dos personagens
+          const clipClone = clip.clone();
+          clipClone.tracks.forEach(track => {
+            if (track && track.name) track.name = track.name.replace(/.*mixamorig/g, 'mixamorig');
+          });
+          const action = mixer.clipAction(clipClone);
+          if (['jump', 'shoot', 'reload', 'rifle_shoot'].includes(animName)) {
+            action.setLoop(THREE.LoopOnce);
+            action.clampWhenFinished = true;
+          }
+          actions[animName] = action;
+        }
+      });
+      // Deixa o idle rodando no background
+      if (actions['idle']) {
+        actions['idle'].play();
+      }
+    }
+
+    return { instance: charModel, hasSkeleton, rightHand, mixer, actions };
+  };
+
+  // Configura ambos os personagens
+  const jakeData = setupCharacter('jake');
+  if (jakeData) {
+    jakeModelInstance = jakeData.instance;
+    jakeHasSkeleton = jakeData.hasSkeleton;
+    jakeRightHand = jakeData.rightHand;
+    jakeMixer = jakeData.mixer;
+    jakeActions = jakeData.actions;
+  }
+
+  const janeData = setupCharacter('jane');
+  if (janeData) {
+    janeModelInstance = janeData.instance;
+    janeHasSkeleton = janeData.hasSkeleton;
+    janeRightHand = janeData.rightHand;
+    janeMixer = janeData.mixer;
+    janeActions = janeData.actions;
+  }
+
+  // Atualiza visibilidade conforme seleção atual
+  updateActiveCharacterModel();
+
+  // Equipa a shotgun automaticamente para facilitar os testes
+  equipWeapon('shotgun');
+
+  console.log("Modelos e animações configurados com sucesso!");
+};
+
 // --- SISTEMA DE MOVIMENTAÇÃO, CONTROLES E ATALHOS ---
-const keys = { w: false, a: false, s: false, d: false, space: false };
+const keys = { w: false, a: false, s: false, d: false, space: false, shift: false };
 const velocity = new THREE.Vector3();
 let velocityY = 0;
 const GRAVITY = -24.0;
 const JUMP_FORCE = 9.2;
 let isGrounded = true;
 
-const MOVE_SPEED = 7.5;
-const ACCELERATION = 42.0;
+const MOVE_SPEED = 3.5;
+const RUN_SPEED = 6.5;
+const ACCELERATION = 24.0;
 const FRICTION = 10.0;
-let playerRotation = 0;
+let playerRotation = Math.PI / 2;
 let walkBobTimer = 0;
+let idleAnimTimer = 0;
 
 window.addEventListener('keydown', (e) => {
   const key = e.key.toLowerCase();
@@ -2118,6 +2385,7 @@ window.addEventListener('keydown', (e) => {
   if (key === 's' || key === 'arrowdown') updateKeyState('s', true);
   if (key === 'd' || key === 'arrowright') updateKeyState('d', true);
   if (e.code === 'Space' || key === ' ') { updateKeyState('space', true); e.preventDefault(); }
+  if (e.key === 'Shift') updateKeyState('shift', true);
   if (key === 'e') handleInteraction();
   if (key === 'g') fireActiveWeapon();
   if (key === 'q') useMedkit();
@@ -2135,6 +2403,7 @@ window.addEventListener('keyup', (e) => {
   if (key === 's' || key === 'arrowdown') updateKeyState('s', false);
   if (key === 'd' || key === 'arrowright') updateKeyState('d', false);
   if (e.code === 'Space' || key === ' ') { updateKeyState('space', false); e.preventDefault(); }
+  if (e.key === 'Shift') updateKeyState('shift', false);
 });
 
 function updateKeyState(key, isPressed) {
@@ -2339,13 +2608,81 @@ initMenuNavigation();
 function startGame() {
   if (isGameStarted) return;
   isGameStarted = true;
+
+  orbitControls.autoRotate = false;
+  orbitControls.enabled = !isThirdPerson;
+
+  // Iniciar e destravar o AudioContext durante o clique do usuario
+  if (AUDIO_ENABLED) {
+    const ctx = getAudioContext();
+    if (ctx.state === 'suspended') {
+      ctx.resume();
+    }
+  }
+
   const startModal = document.getElementById('start-menu-modal');
   if (startModal) startModal.classList.add('hidden');
   playVictorySound();
+
+  // Define o modelo ativo
+  updateActiveCharacterModel();
+
+  // Força o navegador a voltar para o topo e recalcular o tamanho do canvas
+  // Isso evita o bug da tela cortada pela metade ao ocultar o menu modal.
+  setTimeout(() => {
+    window.scrollTo(0, 0);
+    document.body.scrollTop = 0;
+    window.dispatchEvent(new Event('resize'));
+  }, 50);
 }
 
 const btnStartGame = document.getElementById('btn-start-game');
 if (btnStartGame) btnStartGame.addEventListener('click', startGame);
+
+// --- SELEÇÃO DE PERSONAGEM ---
+const btnSelectJake = document.getElementById('btn-select-jake');
+const btnSelectJane = document.getElementById('btn-select-jane');
+
+function updateCharSelectionUI() {
+  if (selectedCharacter === 'jake') {
+    if (btnSelectJake) {
+      btnSelectJake.style.borderColor = '#38bdf8';
+      btnSelectJake.style.background = 'rgba(56, 189, 248, 0.2)';
+      btnSelectJake.style.color = '#fff';
+    }
+    if (btnSelectJane) {
+      btnSelectJane.style.borderColor = 'transparent';
+      btnSelectJane.style.background = 'rgba(255, 255, 255, 0.05)';
+      btnSelectJane.style.color = '#94a3b8';
+    }
+  } else {
+    if (btnSelectJane) {
+      btnSelectJane.style.borderColor = '#38bdf8';
+      btnSelectJane.style.background = 'rgba(56, 189, 248, 0.2)';
+      btnSelectJane.style.color = '#fff';
+    }
+    if (btnSelectJake) {
+      btnSelectJake.style.borderColor = 'transparent';
+      btnSelectJake.style.background = 'rgba(255, 255, 255, 0.05)';
+      btnSelectJake.style.color = '#94a3b8';
+    }
+  }
+}
+
+if (btnSelectJake) {
+  btnSelectJake.addEventListener('click', () => {
+    selectedCharacter = 'jake';
+    updateCharSelectionUI();
+    updateActiveCharacterModel();
+  });
+}
+if (btnSelectJane) {
+  btnSelectJane.addEventListener('click', () => {
+    selectedCharacter = 'jane';
+    updateCharSelectionUI();
+    updateActiveCharacterModel();
+  });
+}
 
 const btnToggleHud = document.getElementById('btn-toggle-hud');
 const floatingHudToggle = document.getElementById('floating-hud-toggle');
@@ -2370,7 +2707,15 @@ if (permMedkitBtn) {
 
 const btnGameOverRestart = document.getElementById('btn-game-over-restart');
 if (btnGameOverRestart) {
-  btnGameOverRestart.addEventListener('click', () => resetGameState());
+  btnGameOverRestart.addEventListener('click', () => {
+    resetGameState();
+    isGameStarted = false;
+    const startModal = document.getElementById('start-menu-modal');
+    if (startModal) {
+      startModal.classList.remove('hidden');
+      showMenuScreen('menu-screen-main');
+    }
+  });
 }
 
 if (permanentWeaponHud) {
@@ -2588,7 +2933,7 @@ window.addEventListener('pointerdown', (e) => {
 
 let isPointerDown = false;
 let pointerLastX = 0, pointerLastY = 0;
-let cameraYaw = Math.PI / 2, cameraPitch = 0.20, cameraDistance = 3.8;
+let cameraYaw = -Math.PI / 2, cameraPitch = 0.20, cameraDistance = 3.8;
 
 function updateZoom(deltaZoom) {
   cameraDistance = THREE.MathUtils.clamp(cameraDistance + deltaZoom, 2.5, 22.0);
@@ -2684,10 +3029,10 @@ function resetGameState() {
     fogObj.fogMat.opacity = 0.96; fogObj.barrierMat.opacity = 0.95; fogObj.group.visible = true;
   }
 
-  playerGroup.position.set(0, 1.0, 0);
+  playerGroup.position.set(25, 1.0, 0);
   velocity.set(0, 0, 0); velocityY = 0;
-  isGrounded = true; playerRotation = -Math.PI / 2;
-  playerGroup.rotation.y = playerRotation; cameraYaw = Math.PI / 2; cameraPitch = 0.20; cameraDistance = 3.8;
+  isGrounded = true; playerRotation = Math.PI / 2;
+  playerGroup.rotation.y = playerRotation; cameraYaw = -Math.PI / 2; cameraPitch = 0.20; cameraDistance = 3.8;
 
   const victoryModal = document.getElementById('victory-modal');
   if (victoryModal) victoryModal.classList.add('hidden');
@@ -2802,11 +3147,11 @@ function checkAndResolveCollisions3D(newPos) {
 const currentCameraPos = new THREE.Vector3();
 const currentLookAt = new THREE.Vector3();
 
-camera.position.set(3.8, 2.1, 0.0);
+camera.position.set(28.8, 2.1, 0.0);
 currentCameraPos.copy(camera.position);
 currentLookAt.copy(playerGroup.position);
 camera.lookAt(playerGroup.position);
-playerRotation = -Math.PI / 2;
+playerRotation = Math.PI / 2;
 playerGroup.rotation.y = playerRotation;
 
 // --- LOOP DE ANIMAÇÃO ---
@@ -2815,13 +3160,28 @@ const clock = new THREE.Clock();
 function animate() {
   requestAnimationFrame(animate);
 
+  // --- SISTEMA DE NAVEGAÇÃO DE MENU COM GAMEPAD ---
+  let gpUI = null;
+  if (navigator.getGamepads) {
+    const gamepads = navigator.getGamepads();
+    gpUI = activeGamepadIndex !== null ? gamepads[activeGamepadIndex] : (gamepads[0] || gamepads[1] || gamepads[2] || gamepads[3]);
+  }
+
+  if (gpUI && gpUI.connected) {
+    // Se o jogo NÃO começou OU está pausado, os menus estão ativos
+    if (!isGameStarted || isGamePaused) {
+      handleGamepadMenuNavigation(gpUI);
+    }
+  }
+
   // Leitura do controle durante a pausa (para despausar com Start / A / B / Back)
   if (isGamePaused) {
     if (navigator.getGamepads) {
       const gamepads = navigator.getGamepads();
       const gp = activeGamepadIndex !== null ? gamepads[activeGamepadIndex] : (gamepads[0] || gamepads[1] || gamepads[2] || gamepads[3]);
-      if (gp && gp.connected) {
-        if (isButtonJustPressed(gp, 9) || isButtonJustPressed(gp, 0) || isButtonJustPressed(gp, 1) || isButtonJustPressed(gp, 8)) {
+      if (gpUI && gpUI.connected) {
+        // Start (9) sempre despausa e volta ao jogo, independentemente do menu em que estiver
+        if (isButtonJustPressed(gpUI, 9)) {
           togglePauseGame(false);
         }
       }
@@ -3079,9 +3439,9 @@ function animate() {
   // Temporizador de invulnerabilidade do jogador (Piscar)
   if (invulnerableTimer > 0) {
     invulnerableTimer -= delta;
-    playerBody.visible = (Math.floor(time * 24) % 2 === 0);
+    if (playerBody) playerBody.visible = (Math.floor(time * 24) % 2 === 0);
   } else {
-    playerBody.visible = true;
+    if (playerBody) playerBody.visible = true;
   }
 
   // Movimento
@@ -3089,147 +3449,155 @@ function animate() {
   const right = new THREE.Vector3(Math.cos(cameraYaw), 0, -Math.sin(cameraYaw));
 
   const inputVector = new THREE.Vector3();
-  if (keys.w) inputVector.add(forward);
-  if (keys.s) inputVector.sub(forward);
-  if (keys.a) inputVector.sub(right);
-  if (keys.d) inputVector.add(right);
+
+  // Bloqueia controles se o jogo ainda não começou ou está pausado
+  if (isGameStarted && !isGamePaused) {
+    if (keys.w) inputVector.add(forward);
+    if (keys.s) inputVector.sub(forward);
+    if (keys.a) inputVector.sub(right);
+    if (keys.d) inputVector.add(right);
+  }
 
   // --- LEITURA DO CONTROLE XBOX / GAMEPAD ---
   if (navigator.getGamepads) {
     const gamepads = navigator.getGamepads();
     const gp = activeGamepadIndex !== null ? gamepads[activeGamepadIndex] : (gamepads[0] || gamepads[1] || gamepads[2] || gamepads[3]);
     if (gp && gp.connected) {
-      // Iniciar Jogo via Controle (Botão A ou Start)
-      if (!isGameStarted && (isButtonJustPressed(gp, 0) || isButtonJustPressed(gp, 9))) {
-        startGame();
-      }
-
-      // Analógico Esquerdo: Movimento
-      const rawLX = gp.axes[0] || 0;
-      const rawLY = gp.axes[1] || 0;
-      const stickLX = applyAxisDeadzone(rawLX, 0.16);
-      const stickLY = applyAxisDeadzone(rawLY, 0.16);
-
-      if (Math.abs(stickLX) > 0 || Math.abs(stickLY) > 0) {
-        inputVector.addScaledVector(forward, -stickLY);
-        inputVector.addScaledVector(right, stickLX);
-      }
-
-      // Analógico Direito: Câmera / Rotação
-      const rawRX = gp.axes[2] || 0;
-      const rawRY = gp.axes[3] || 0;
-      const stickRX = applyAxisDeadzone(rawRX, 0.16);
-      const stickRY = applyAxisDeadzone(rawRY, 0.16);
-
-      if (Math.abs(stickRX) > 0 || Math.abs(stickRY) > 0) {
-        if (isThirdPerson) {
-          cameraYaw -= stickRX * delta * 3.4;
-          cameraPitch = THREE.MathUtils.clamp(cameraPitch + stickRY * delta * 2.6, -0.15, 1.15);
+      // Iniciar Jogo via Controle (Start) - O 'A' agora é lidado pelo menu navigator
+      if (!isGameStarted) {
+        if (isButtonJustPressed(gp, 9)) {
+          startGame();
         }
       }
 
-      // Botão A (0): Pulo
-      if (gp.buttons[0] && (gp.buttons[0].pressed || gp.buttons[0].value > 0.5)) {
-        if (isGrounded) {
-          velocityY = JUMP_FORCE;
-          isGrounded = false;
-          playJumpSound();
-          const keySpaceElem = document.getElementById('key-space');
-          if (keySpaceElem) keySpaceElem.classList.add('active');
+      if (isGameStarted && !isGamePaused) {
+        // Analógico Esquerdo: Movimento
+        const rawLX = gp.axes[0] || 0;
+        const rawLY = gp.axes[1] || 0;
+        const stickLX = applyAxisDeadzone(rawLX, 0.16);
+        const stickLY = applyAxisDeadzone(rawLY, 0.16);
+
+        if (Math.abs(stickLX) > 0 || Math.abs(stickLY) > 0) {
+          inputVector.addScaledVector(forward, -stickLY);
+          inputVector.addScaledVector(right, stickLX);
         }
-      }
 
-      // Gatilho Direito RT (7): Atirar
-      if (isButtonJustPressed(gp, 7)) {
-        fireActiveWeapon();
-      }
+        // Analógico Direito: Câmera / Rotação
+        const rawRX = gp.axes[2] || 0;
+        const rawRY = gp.axes[3] || 0;
+        const stickRX = applyAxisDeadzone(rawRX, 0.16);
+        const stickRY = applyAxisDeadzone(rawRY, 0.16);
 
-      // Botão RB (5): Recarregar
-      if (isButtonJustPressed(gp, 5)) {
-        reloadActiveWeapon();
-      }
-
-      // Gatilho Esquerdo LT (6): Aproximar Câmera / Mira (Zoom In)
-      const ltValue = gp.buttons[6] ? (gp.buttons[6].value || (gp.buttons[6].pressed ? 1 : 0)) : 0;
-      if (ltValue > 0.25 || (gp.axes[4] && gp.axes[4] > 0.3)) {
-        updateZoom(-delta * 4.5);
-      }
-
-      // Botão Superior Esquerdo LB (4): Afastar Câmera (Zoom Out)
-      const lbPressed = gp.buttons[4] && (gp.buttons[4].pressed || gp.buttons[4].value > 0.3);
-      if (lbPressed) {
-        updateZoom(delta * 4.5);
-      }
-
-      // Botão X (2): Interagir / Coletar
-      if (isButtonJustPressed(gp, 2)) {
-        handleInteraction();
-      }
-
-      // Botão B (1): Alternar Luz do Quarto (Apenas próximo ao interruptor)
-      if (isButtonJustPressed(gp, 1)) {
-        let closestEnv = null;
-        let minD = 2.8;
-        for (const envId in roomEnvironments) {
-          const env = roomEnvironments[envId];
-          if (env.switchGroup) {
-            const d = playerGroup.position.distanceTo(env.switchGroup.position);
-            if (d < minD) { minD = d; closestEnv = envId; }
+        if (Math.abs(stickRX) > 0 || Math.abs(stickRY) > 0) {
+          if (isThirdPerson) {
+            cameraYaw -= stickRX * delta * 3.4;
+            cameraPitch = THREE.MathUtils.clamp(cameraPitch + stickRY * delta * 2.6, -0.15, 1.15);
           }
         }
-        if (closestEnv) {
-          toggleRoomEnvironmentLight(closestEnv);
-        } else {
-          if (interactionPrompt) interactionPrompt.classList.remove('hidden');
-          if (promptText) promptText.textContent = 'Aproxime-se do interruptor na parede 💡';
-          setTimeout(() => {
-            if (promptText && promptText.textContent.includes('Aproxime-se')) {
-              interactionPrompt.classList.add('hidden');
+
+        // Botão A (0): Pulo
+        if (gp.buttons[0] && (gp.buttons[0].pressed || gp.buttons[0].value > 0.5)) {
+          if (isGrounded) {
+            velocityY = JUMP_FORCE;
+            isGrounded = false;
+            playJumpSound();
+            const keySpaceElem = document.getElementById('key-space');
+            if (keySpaceElem) keySpaceElem.classList.add('active');
+          }
+        }
+
+        // Gatilho Direito RT (7): Atirar
+        if (isButtonJustPressed(gp, 7)) {
+          fireActiveWeapon();
+        }
+
+        // Botão RB (5): Recarregar
+        if (isButtonJustPressed(gp, 5)) {
+          reloadActiveWeapon();
+        }
+
+        // Gatilho Esquerdo LT (6): Aproximar Câmera / Mira (Zoom In)
+        const ltValue = gp.buttons[6] ? (gp.buttons[6].value || (gp.buttons[6].pressed ? 1 : 0)) : 0;
+        if (ltValue > 0.25 || (gp.axes[4] && gp.axes[4] > 0.3)) {
+          updateZoom(-delta * 4.5);
+        }
+
+        // Botão Superior Esquerdo LB (4): Afastar Câmera (Zoom Out)
+        const lbPressed = gp.buttons[4] && (gp.buttons[4].pressed || gp.buttons[4].value > 0.3);
+        if (lbPressed) {
+          updateZoom(delta * 4.5);
+        }
+
+        // Botão X (2): Interagir / Coletar
+        if (isButtonJustPressed(gp, 2)) {
+          handleInteraction();
+        }
+
+        // Botão B (1): Alternar Luz do Quarto (Apenas próximo ao interruptor)
+        if (isButtonJustPressed(gp, 1)) {
+          let closestEnv = null;
+          let minD = 2.8;
+          for (const envId in roomEnvironments) {
+            const env = roomEnvironments[envId];
+            if (env.switchGroup) {
+              const d = playerGroup.position.distanceTo(env.switchGroup.position);
+              if (d < minD) { minD = d; closestEnv = envId; }
             }
-          }, 1500);
+          }
+          if (closestEnv) {
+            toggleRoomEnvironmentLight(closestEnv);
+          } else {
+            if (interactionPrompt) interactionPrompt.classList.remove('hidden');
+            if (promptText) promptText.textContent = 'Aproxime-se do interruptor na parede 💡';
+            setTimeout(() => {
+              if (promptText && promptText.textContent.includes('Aproxime-se')) {
+                interactionPrompt.classList.add('hidden');
+              }
+            }, 1500);
+          }
         }
-      }
 
-      // Botão Y (3): Ciclar Armas
-      if (isButtonJustPressed(gp, 3)) {
-        const wRev = weaponInventory.revolver;
-        const wSht = weaponInventory.shotgun;
-        if (equippedWeaponId === null) {
-          if (wRev.isAcquired) equipWeapon('revolver');
-          else if (wSht.isAcquired) equipWeapon('shotgun');
-        } else if (equippedWeaponId === 'revolver') {
-          if (wSht.isAcquired) equipWeapon('shotgun');
-          else equipWeapon(null);
-        } else if (equippedWeaponId === 'shotgun') {
-          if (wRev.isAcquired) equipWeapon('revolver');
-          else equipWeapon(null);
+        // Botão Y (3): Ciclar Armas
+        if (isButtonJustPressed(gp, 3)) {
+          const wRev = weaponInventory.revolver;
+          const wSht = weaponInventory.shotgun;
+          if (equippedWeaponId === null) {
+            if (wRev.isAcquired) equipWeapon('revolver');
+            else if (wSht.isAcquired) equipWeapon('shotgun');
+          } else if (equippedWeaponId === 'revolver') {
+            if (wSht.isAcquired) equipWeapon('shotgun');
+            else equipWeapon(null);
+          } else if (equippedWeaponId === 'shotgun') {
+            if (wRev.isAcquired) equipWeapon('revolver');
+            else equipWeapon(null);
+          }
         }
-      }
 
-      // D-Pad Cima (12): Curar com Medicamento 💊
-      if (isButtonJustPressed(gp, 12)) {
-        useMedkit();
-      }
+        // D-Pad Cima (12): Curar com Medicamento 💊
+        if (isButtonJustPressed(gp, 12)) {
+          useMedkit();
+        }
 
-      // Select / View / Back (8): Alternar HUD
-      if (isButtonJustPressed(gp, 8)) {
-        toggleHUD();
-      }
+        // Select / View / Back (8): Alternar HUD
+        if (isButtonJustPressed(gp, 8)) {
+          toggleHUD();
+        }
 
-      // D-Pad Esquerdo (14): Revólver
-      if (isButtonJustPressed(gp, 14)) {
-        equipWeapon('revolver');
-      }
+        // D-Pad Esquerdo (14): Revólver
+        if (isButtonJustPressed(gp, 14)) {
+          equipWeapon('revolver');
+        }
 
-      // D-Pad Direito (15): Shotgun
-      if (isButtonJustPressed(gp, 15)) {
-        equipWeapon('shotgun');
-      }
+        // D-Pad Direito (15): Shotgun
+        if (isButtonJustPressed(gp, 15)) {
+          equipWeapon('shotgun');
+        }
 
-      // D-Pad Baixo (13): Desarmar
-      if (isButtonJustPressed(gp, 13)) {
-        equipWeapon(null);
-      }
+        // D-Pad Baixo (13): Desarmar
+        if (isButtonJustPressed(gp, 13)) {
+          equipWeapon(null);
+        }
+      } // Fim do if (isGameStarted && !isGamePaused)
 
       // Start/Menu (9): Pausar / Despausar Jogo
       if (isButtonJustPressed(gp, 9)) {
@@ -3242,15 +3610,17 @@ function animate() {
     }
   }
 
-  if (keys.space && isGrounded) {
-    velocityY = JUMP_FORCE;
-    isGrounded = false;
-    playJumpSound();
-    const keySpaceElem = document.getElementById('key-space');
-    if (keySpaceElem) keySpaceElem.classList.add('active');
-  } else if (!keys.space) {
-    const keySpaceElem = document.getElementById('key-space');
-    if (keySpaceElem) keySpaceElem.classList.remove('active');
+  if (isGameStarted && !isGamePaused) {
+    if (keys.space && isGrounded) {
+      velocityY = JUMP_FORCE;
+      isGrounded = false;
+      playJumpSound();
+      const keySpaceElem = document.getElementById('key-space');
+      if (keySpaceElem) keySpaceElem.classList.add('active');
+    } else if (!keys.space) {
+      const keySpaceElem = document.getElementById('key-space');
+      if (keySpaceElem) keySpaceElem.classList.remove('active');
+    }
   }
 
   const isMoving = inputVector.lengthSq() > 0;
@@ -3260,10 +3630,20 @@ function animate() {
     velocity.x += inputVector.x * ACCELERATION * delta;
     velocity.z += inputVector.z * ACCELERATION * delta;
 
+    let isRunning = keys.shift;
+    if (isGamepadConnected && navigator.getGamepads) {
+      const gp = navigator.getGamepads()[activeGamepadIndex];
+      // Analógico esquerdo totalmente empurrado ou botão L3
+      if (gp && ((gp.buttons[10] && gp.buttons[10].pressed) || inputVector.length() > 0.85)) {
+        isRunning = true;
+      }
+    }
+
+    const currentMaxSpeed = isRunning ? RUN_SPEED : MOVE_SPEED;
     const speed = Math.sqrt(velocity.x * velocity.x + velocity.z * velocity.z);
-    if (speed > MOVE_SPEED) {
-      velocity.x = (velocity.x / speed) * MOVE_SPEED;
-      velocity.z = (velocity.z / speed) * MOVE_SPEED;
+    if (speed > currentMaxSpeed) {
+      velocity.x = (velocity.x / speed) * currentMaxSpeed;
+      velocity.z = (velocity.z / speed) * currentMaxSpeed;
     }
 
     const targetAngle = Math.atan2(inputVector.x, inputVector.z);
@@ -3274,15 +3654,59 @@ function animate() {
     playerGroup.rotation.y = playerRotation;
 
     if (isGrounded) {
-      walkBobTimer += delta * 12;
-      playerBody.position.y = Math.sin(walkBobTimer) * 0.05;
+      walkBobTimer += delta * (isRunning ? 20 : 14);
+      if (playerMixer) playPlayerAnim(isRunning ? 'run' : 'walk');
+
+      const useProcedural = !(selectedCharacter === 'jane' && janeHasSkeleton);
+
+      if (playerBody && useProcedural) {
+        // Elevação de cada passo (bounce)
+        playerBody.position.y = -1.0 + Math.abs(Math.sin(walkBobTimer)) * 0.12;
+        // Ginga de ombros lateral (sway)
+        playerBody.rotation.z = Math.sin(walkBobTimer * 0.5) * 0.08;
+        // Inclinação corporal ao caminhar/correr (forward tilt)
+        const baseRotX = (selectedCharacter === 'jane' ? -Math.PI / 2 : 0);
+        playerBody.rotation.x = baseRotX + Math.sin(walkBobTimer) * 0.04 + 0.06;
+      } else if (playerBody) {
+        // Personagem animado via FBX Mixer (não precisa de bobbing procedimental)
+        playerBody.position.y = -1.0;
+        // Não forçamos rotação X ou Z para 0 aqui, pois a rotação inicial já foi configurada no onLoad.
+      }
     }
   } else {
+    idleAnimTimer += delta * 3;
+    if (playerMixer) playPlayerAnim('idle');
     velocity.x -= velocity.x * FRICTION * delta;
     velocity.z -= velocity.z * FRICTION * delta;
     if (Math.abs(velocity.x) < 0.01) velocity.x = 0;
     if (Math.abs(velocity.z) < 0.01) velocity.z = 0;
-    if (isGrounded) playerBody.position.y = 0;
+    if (isGrounded) {
+      const useProcedural = !(selectedCharacter === 'jane' && janeHasSkeleton);
+
+      if (playerBody && useProcedural) {
+        // Respiração idle realista (subida e descida suave do peito)
+        playerBody.position.y = -1.0 + Math.sin(idleAnimTimer) * 0.025;
+        playerBody.rotation.z = Math.sin(idleAnimTimer * 0.5) * 0.02;
+        const baseRotX = (selectedCharacter === 'jane' ? -Math.PI / 2 : 0);
+        playerBody.rotation.x = baseRotX;
+      } else if (playerBody) {
+        playerBody.position.y = -1.0;
+      }
+    }
+  }
+
+  if (!isGrounded && playerBody) {
+    const useProcedural = !(selectedCharacter === 'jane' && janeHasSkeleton);
+    if (useProcedural) {
+      // Inclinação no ar durante o pulo
+      const baseRotX = (selectedCharacter === 'jane' ? -Math.PI / 2 : 0);
+      playerBody.rotation.x = baseRotX - 0.12;
+    }
+  }
+
+  // Atualiza o mixer FBX (se o modelo tiver rig/ossos)
+  if (playerMixer) {
+    playerMixer.update(delta);
   }
 
   velocityY += GRAVITY * delta;
@@ -3304,7 +3728,7 @@ function animate() {
 
   playerGroup.position.copy(newPos);
 
-  if (isThirdPerson) {
+  if (isThirdPerson && isGameStarted) {
     const offsetX = cameraDistance * Math.sin(cameraYaw) * Math.cos(cameraPitch);
     const offsetY = cameraDistance * Math.sin(cameraPitch);
     const offsetZ = cameraDistance * Math.cos(cameraYaw) * Math.cos(cameraPitch);
@@ -3504,6 +3928,88 @@ updateInventoryUI();
 updateWeaponsUI();
 updatePlayerHealthUI();
 updateGoalHUD();
+
+// --- SISTEMA DE FOCO DO GAMEPAD ---
+let gamepadUIRefreshTimer = 0;
+let currentFocusedElement = null;
+
+function handleGamepadMenuNavigation(gp) {
+  const now = performance.now();
+  if (now - gamepadUIRefreshTimer < 150) return; // Cooldown de navegação (evita pular rápido demais)
+
+  // Encontrar todos os botões e sliders visíveis nas modais
+  const focusableElements = Array.from(document.querySelectorAll('button:not([disabled]), input[type="range"]')).filter(el => {
+    return el.offsetParent !== null; // Só pega os que estão visíveis na tela
+  });
+
+  if (focusableElements.length === 0) return;
+
+  let currentIndex = focusableElements.indexOf(currentFocusedElement);
+  if (currentIndex === -1) {
+    currentIndex = 0;
+    currentFocusedElement = focusableElements[0];
+    currentFocusedElement.focus({ preventScroll: true });
+  }
+
+  let moved = false;
+
+  // D-Pad Baixo / Analógico Baixo
+  if (isButtonJustPressed(gp, 13) || gp.axes[1] > 0.5) {
+    currentIndex = (currentIndex + 1) % focusableElements.length;
+    moved = true;
+  }
+  // D-Pad Cima / Analógico Cima
+  else if (isButtonJustPressed(gp, 12) || gp.axes[1] < -0.5) {
+    currentIndex = (currentIndex - 1 + focusableElements.length) % focusableElements.length;
+    moved = true;
+  }
+  // Se estiver focado em um range (slider de dificuldade), usar Esquerda/Direita para mexer
+  else if (currentFocusedElement.tagName.toLowerCase() === 'input' && currentFocusedElement.type === 'range') {
+    if (isButtonJustPressed(gp, 14) || gp.axes[0] < -0.5) { // Esquerda
+      currentFocusedElement.value = Math.max(parseFloat(currentFocusedElement.min), parseFloat(currentFocusedElement.value) - parseFloat(currentFocusedElement.step));
+      currentFocusedElement.dispatchEvent(new Event('input')); // Força a atualização visual
+      moved = true;
+    } else if (isButtonJustPressed(gp, 15) || gp.axes[0] > 0.5) { // Direita
+      currentFocusedElement.value = Math.min(parseFloat(currentFocusedElement.max), parseFloat(currentFocusedElement.value) + parseFloat(currentFocusedElement.step));
+      currentFocusedElement.dispatchEvent(new Event('input'));
+      moved = true;
+    }
+  }
+  // Navegação horizontal em botões normais (ex: Jane / Jake)
+  else {
+    if (isButtonJustPressed(gp, 14) || gp.axes[0] < -0.5) { // Esquerda
+      currentIndex = (currentIndex - 1 + focusableElements.length) % focusableElements.length;
+      moved = true;
+    } else if (isButtonJustPressed(gp, 15) || gp.axes[0] > 0.5) { // Direita
+      currentIndex = (currentIndex + 1) % focusableElements.length;
+      moved = true;
+    }
+  }
+
+  if (moved) {
+    currentFocusedElement = focusableElements[currentIndex];
+    currentFocusedElement.focus({ preventScroll: true });
+    gamepadUIRefreshTimer = now;
+  }
+
+  // Botão A (Confirmar/Clicar)
+  if (isButtonJustPressed(gp, 0)) {
+    if (currentFocusedElement) {
+      currentFocusedElement.click();
+      gamepadUIRefreshTimer = now + 300; // Maior cooldown após clique
+    }
+  }
+
+  // Botão B (Voltar)
+  if (isButtonJustPressed(gp, 1)) {
+    // Procura por um botão com a classe 'btn-menu-back' que esteja visível
+    const backBtn = Array.from(document.querySelectorAll('.btn-menu-back')).find(el => el.offsetParent !== null);
+    if (backBtn) {
+      backBtn.click();
+      gamepadUIRefreshTimer = now + 300;
+    }
+  }
+}
 
 animate();
 

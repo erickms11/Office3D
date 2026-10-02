@@ -26,6 +26,7 @@ const MIME_TYPES = {
   '.ttf': 'font/ttf',
   '.glb': 'model/gltf-binary',
   '.gltf': 'model/gltf+json',
+  '.fbx': 'application/octet-stream',
 };
 
 const server = http.createServer((req, res) => {
@@ -45,6 +46,10 @@ const server = http.createServer((req, res) => {
 
   if (pathname === '/') {
     pathname = '/index.html';
+  }
+
+  if (pathname.includes('bd97ead0_7a82_44af_8d0b_80c552157a6d.png')) {
+    pathname = '/assets/models/jane/bd97ead0_7a82_44af_8d0b_80c552157a6d.png';
   }
 
   // Previne Directory Traversal

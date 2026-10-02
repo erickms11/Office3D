@@ -751,13 +751,12 @@ body, html {
   z-index: 120;
   display: flex;
   align-items: center;
-  justify-content: center;
-  background: radial-gradient(circle at center, rgba(15, 23, 42, 0.88) 0%, rgba(2, 6, 23, 0.96) 100%);
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
+  justify-content: flex-start;
+  padding-left: 10%;
+  background: transparent;
   opacity: 1;
   transition: opacity 0.5s cubic-bezier(0.4, 0, 0.2, 1), transform 0.5s ease;
-  pointer-events: auto;
+  pointer-events: none;
 }
 
 #start-menu-modal.hidden {
@@ -767,6 +766,7 @@ body, html {
 }
 
 .start-menu-card {
+  pointer-events: auto;
   max-width: 520px;
   width: 90%;
   padding: 38px 32px;
@@ -891,11 +891,12 @@ body, html {
   transition: all 0.25s ease;
 }
 
-.btn-menu-secondary:hover {
+.btn-menu-secondary:hover, .btn-menu-secondary:focus {
   background: rgba(51, 65, 85, 0.85);
   border-color: rgba(56, 189, 248, 0.45);
   transform: translateY(-1px);
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+  outline: none;
 }
 
 .btn-menu-secondary .btn-icon {
@@ -933,10 +934,11 @@ body, html {
   margin-top: 4px;
 }
 
-.btn-menu-back:hover {
+.btn-menu-back:hover, .btn-menu-back:focus {
   background: rgba(30, 41, 59, 0.85);
   border-color: rgba(56, 189, 248, 0.4);
   color: #ffffff;
+  outline: none;
 }
 
 .btn-danger-action:hover {
@@ -1104,11 +1106,12 @@ body, html {
   transition: all 0.25s ease;
 }
 
-.btn-preset:hover {
+.btn-preset:hover, .btn-preset:focus {
   background: rgba(51, 65, 85, 0.9);
   border-color: rgba(56, 189, 248, 0.4);
   color: #ffffff;
   transform: translateY(-1px);
+  outline: none;
 }
 
 .btn-preset.active {
@@ -1180,6 +1183,11 @@ body, html {
   cursor: pointer;
 }
 
+.diff-range-slider:focus {
+  outline: 2px solid #38bdf8;
+  outline-offset: 4px;
+}
+
 .diff-range-slider::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
@@ -1226,10 +1234,11 @@ body, html {
   transition: all 0.25s ease;
 }
 
-.btn-start-game:hover {
+.btn-start-game:hover, .btn-start-game:focus {
   transform: translateY(-2px);
   filter: brightness(1.15);
   box-shadow: 0 12px 36px rgba(56, 189, 248, 0.6), 0 0 30px rgba(56, 189, 248, 0.5);
+  outline: none;
 }
 
 .btn-start-game:active {
