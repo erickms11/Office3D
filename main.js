@@ -52,7 +52,7 @@ let isThirdPerson = true;
 
 // --- EFEITOS SONOROS SINTETIZADOS VIA WEB AUDIO API ---
 // Desativado temporariamente conforme feedback
-const AUDIO_ENABLED = true; // Habilitando para testar se o travamento parou
+const AUDIO_ENABLED = false; // Habilitando para testar se o travamento parou
 
 let globalAudioCtx = null;
 function getAudioContext() {
@@ -2210,7 +2210,7 @@ assetManager.manager.onLoad = () => {
 
   playerWeaponGroup.position.set(0, 0, 0);
   playerWeaponGroup.rotation.set(Math.PI / 2, Math.PI / 2, 0); // Ajuste Mixamo
-  
+
   const PISTOL_ROT_X = THREE.MathUtils.degToRad(-70);
   const PISTOL_ROT_Y = THREE.MathUtils.degToRad(90);
   const PISTOL_ROT_Z = THREE.MathUtils.degToRad(180);
@@ -2226,7 +2226,7 @@ assetManager.manager.onLoad = () => {
     pModel.position.set(PISTOL_POS_X, PISTOL_POS_Y, PISTOL_POS_Z);
     weaponInventory.revolver.mesh.add(pModel);
   }
-  
+
   if (assetManager.models['shotgun']) {
     const sModel = assetManager.models['shotgun'].clone();
     weaponInventory.shotgun.mesh.children.forEach(ch => ch.visible = false);
@@ -2266,10 +2266,10 @@ assetManager.manager.onLoad = () => {
     charModel.position.set(0, -1.0, 0);
 
     charModel.traverse(c => {
-      if (c.isMesh) { 
-        c.castShadow = true; 
-        c.receiveShadow = true; 
-        
+      if (c.isMesh) {
+        c.castShadow = true;
+        c.receiveShadow = true;
+
         // Esconder armas embutidas nos modelos originais (como rifles/pistolas que vêm colados no FBX)
         const name = c.name.toLowerCase();
         if (name.includes('weapon') || name.includes('gun') || name.includes('rifle') || name.includes('pistol') || name.includes('shotgun') || name.includes('sword') || name.includes('assault')) {

@@ -73,24 +73,6 @@ Seu objetivo é explorar as 6 salas, desvendar os segredos de cada ambiente, adq
 
 ---
 
-## 🚀 Como Executar Localmente
-
-1. **Clone o repositório:**
-   ```bash
-   git clone https://github.com/erickms11/outbreak-hotel.git
-   cd outbreak-hotel
-   ```
-
-2. **Inicie o servidor local:**
-   ```bash
-   node server.js
-   ```
-
-3. **Abra no navegador:**
-   [http://localhost:5173](http://localhost:5173)
-
----
-
 ## 🛠️ Tecnologias Utilizadas
 
 - [Three.js](https://threejs.org/) (Motor WebGL 3D)
