@@ -30,6 +30,10 @@ const camera = new THREE.PerspectiveCamera(
   1000
 );
 
+// --- AUDIO LISTENER ---
+const audioListener = new THREE.AudioListener();
+camera.add(audioListener);
+
 const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -52,7 +56,7 @@ let isThirdPerson = true;
 
 // --- EFEITOS SONOROS SINTETIZADOS VIA WEB AUDIO API ---
 // Desativado temporariamente conforme feedback
-const AUDIO_ENABLED = false; // Habilitando para testar se o travamento parou
+const AUDIO_ENABLED = true; // Habilitando para testar se o travamento parou
 
 let globalAudioCtx = null;
 function getAudioContext() {
@@ -62,332 +66,134 @@ function getAudioContext() {
   return globalAudioCtx;
 }
 
+// --- HELPER PARA TOCAR ARQUIVOS DE ÁUDIO (.mp3, .ogg) ---
+function playBetterAudio(key) {
+  const buffer = assetManager.getSoundBuffer(key);
+  if (buffer && typeof audioListener !== 'undefined') {
+    try {
+      const sound = new THREE.Audio(audioListener);
+      sound.setBuffer(buffer);
+      sound.setVolume(0.5);
+      sound.play();
+      return true;
+    } catch (e) {
+      console.warn("Erro ao tocar áudio: ", e);
+    }
+  }
+  return false;
+}
+
 function playSwitchSound(state) {
   if (!AUDIO_ENABLED) return;
-  try {
-    const ctx = getAudioContext();
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(state ? 640 : 420, ctx.currentTime);
-    osc.frequency.exponentialRampToValueAtTime(150, ctx.currentTime + 0.05);
-    gain.gain.setValueAtTime(0.25, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.05);
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    osc.start();
-    osc.stop(ctx.currentTime + 0.06);
-  } catch (e) { }
+  if (playBetterAudio('switch')) return;
+  // Fallback sintetizado desativado para evitar travadas
+  return;
 }
 
 function playDoorSound(isOpen) {
   if (!AUDIO_ENABLED) return;
-  try {
-    const ctx = getAudioContext();
-    const now = ctx.currentTime;
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.type = 'triangle';
-    osc.frequency.setValueAtTime(isOpen ? 220 : 440, now);
-    osc.frequency.exponentialRampToValueAtTime(isOpen ? 440 : 180, now + 0.2);
-    gain.gain.setValueAtTime(0.2, now);
-    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.22);
-    osc.connect(gain); gain.connect(ctx.destination);
-    osc.start(now); osc.stop(now + 0.23);
-  } catch (e) { }
+  if (playBetterAudio('door')) return;
+  // Fallback sintetizado desativado para evitar travadas
+  return;
 }
 
 function playJumpSound() {
   if (selectedCharacter === 'jane') playPlayerAnim('jump', 0.1);
   if (!AUDIO_ENABLED) return;
-  try {
-    const ctx = getAudioContext();
-    const now = ctx.currentTime;
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(180, now);
-    osc.frequency.exponentialRampToValueAtTime(460, now + 0.14);
-    gain.gain.setValueAtTime(0.22, now);
-    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    osc.start(now);
-    osc.stop(now + 0.16);
-  } catch (e) { }
+  if (playBetterAudio('jump')) return;
+  // Fallback sintetizado desativado para evitar travadas
+  return;
 }
 
 function playKeySound() {
   if (!AUDIO_ENABLED) return;
-  try {
-    const ctx = getAudioContext();
-    const now = ctx.currentTime;
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(523.25, now);
-    osc.frequency.exponentialRampToValueAtTime(1046.5, now + 0.18);
-    gain.gain.setValueAtTime(0.3, now);
-    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.22);
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    osc.start(now);
-    osc.stop(now + 0.24);
-  } catch (e) { }
+  if (playBetterAudio('key')) return;
+  // Fallback sintetizado desativado para evitar travadas
+  return;
 }
 
 function playLockedSound() {
   if (!AUDIO_ENABLED) return;
-  try {
-    const ctx = getAudioContext();
-    const now = ctx.currentTime;
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.type = 'sawtooth';
-    osc.frequency.setValueAtTime(130, now);
-    osc.frequency.setValueAtTime(90, now + 0.08);
-    gain.gain.setValueAtTime(0.25, now);
-    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.18);
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    osc.start(now);
-    osc.stop(now + 0.2);
-  } catch (e) { }
+  if (playBetterAudio('locked')) return;
+  // Fallback sintetizado desativado para evitar travadas
+  return;
 }
 
 function playVictorySound() {
   if (!AUDIO_ENABLED) return;
-  try {
-    const ctx = getAudioContext();
-    const notes = [523.25, 659.25, 783.99, 1046.5];
-    notes.forEach((freq, idx) => {
-      const now = ctx.currentTime + idx * 0.12;
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.type = 'triangle';
-      osc.frequency.setValueAtTime(freq, now);
-      gain.gain.setValueAtTime(0.35, now);
-      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.28);
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.start(now);
-      osc.stop(now + 0.3);
-    });
-  } catch (e) { }
+  if (playBetterAudio('victory')) return;
+  // Fallback sintetizado desativado para evitar travadas
+  return;
 }
 
 function playGunshotSound(weaponType) {
   if (!AUDIO_ENABLED) return;
-  try {
-    const ctx = getAudioContext();
-    const now = ctx.currentTime;
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-
-    if (weaponType === 'shotgun') {
-      osc.type = 'sawtooth';
-      osc.frequency.setValueAtTime(180, now);
-      osc.frequency.exponentialRampToValueAtTime(45, now + 0.22);
-      gain.gain.setValueAtTime(0.45, now);
-      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.25);
-    } else {
-      osc.type = 'square';
-      osc.frequency.setValueAtTime(360, now);
-      osc.frequency.exponentialRampToValueAtTime(70, now + 0.12);
-      gain.gain.setValueAtTime(0.35, now);
-      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.14);
-    }
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    osc.start(now);
-    osc.stop(now + 0.26);
-  } catch (e) { }
+  if (playBetterAudio('gunshot')) return;
+  // Fallback sintetizado desativado para evitar travadas
+  return;
 }
 
 function playReloadSound() {
   if (!AUDIO_ENABLED) return;
-  try {
-    const ctx = getAudioContext();
-    const now = ctx.currentTime;
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(440, now);
-    osc.frequency.setValueAtTime(660, now + 0.08);
-    gain.gain.setValueAtTime(0.25, now);
-    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    osc.start(now);
-    osc.stop(now + 0.16);
-  } catch (e) { }
+  if (playBetterAudio('reload')) return;
+  // Fallback sintetizado desativado para evitar travadas
+  return;
 }
 
 function playDryFireSound() {
   if (!AUDIO_ENABLED) return;
-  try {
-    const ctx = getAudioContext();
-    const now = ctx.currentTime;
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.type = 'triangle';
-    osc.frequency.setValueAtTime(800, now);
-    gain.gain.setValueAtTime(0.2, now);
-    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.05);
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    osc.start(now);
-    osc.stop(now + 0.06);
-  } catch (e) { }
+  if (playBetterAudio('dryfire')) return;
+  // Fallback sintetizado desativado para evitar travadas
+  return;
 }
 
 function playAmmoPickupSound() {
   if (!AUDIO_ENABLED) return;
-  try {
-    const ctx = getAudioContext();
-    const now = ctx.currentTime;
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(350, now);
-    osc.frequency.exponentialRampToValueAtTime(700, now + 0.12);
-    gain.gain.setValueAtTime(0.28, now);
-    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    osc.start(now);
-    osc.stop(now + 0.16);
-  } catch (e) { }
+  if (playBetterAudio('ammo')) return;
+  // Fallback sintetizado desativado para evitar travadas
+  return;
 }
 
 function playHurtSound() {
   if (!AUDIO_ENABLED) return;
-  try {
-    const ctx = getAudioContext();
-    const now = ctx.currentTime;
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.type = 'sawtooth';
-    osc.frequency.setValueAtTime(120, now);
-    osc.frequency.exponentialRampToValueAtTime(40, now + 0.25);
-    gain.gain.setValueAtTime(0.45, now);
-    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.28);
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    osc.start(now);
-    osc.stop(now + 0.3);
-  } catch (e) { }
+  if (playBetterAudio('hurt')) return;
+  // Fallback sintetizado desativado para evitar travadas
+  return;
 }
 
 function playHealSound() {
   if (!AUDIO_ENABLED) return;
-  try {
-    const ctx = getAudioContext();
-    const freqs = [330, 440, 554.37, 659.25, 880];
-    freqs.forEach((freq, idx) => {
-      const now = ctx.currentTime + idx * 0.07;
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(freq, now);
-      osc.frequency.exponentialRampToValueAtTime(freq * 1.2, now + 0.18);
-      gain.gain.setValueAtTime(0.22, now);
-      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.start(now);
-      osc.stop(now + 0.22);
-    });
-  } catch (e) { }
+  if (playBetterAudio('heal')) return;
+  // Fallback sintetizado desativado para evitar travadas
+  return;
 }
 
 function playZombieHitSound() {
   if (!AUDIO_ENABLED) return;
-  try {
-    const ctx = getAudioContext();
-    const now = ctx.currentTime;
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.type = 'triangle';
-    osc.frequency.setValueAtTime(220, now);
-    osc.frequency.exponentialRampToValueAtTime(80, now + 0.15);
-    gain.gain.setValueAtTime(0.35, now);
-    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.16);
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    osc.start(now);
-    osc.stop(now + 0.18);
-  } catch (e) { }
+  if (playBetterAudio('zombie_hit')) return;
+  // Fallback sintetizado desativado para evitar travadas
+  return;
 }
 
 function playZombieGroanSound() {
   if (!AUDIO_ENABLED) return;
-  try {
-    const ctx = getAudioContext();
-    const now = ctx.currentTime;
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.type = 'sawtooth';
-    osc.frequency.setValueAtTime(75, now);
-    osc.frequency.linearRampToValueAtTime(110, now + 0.3);
-    osc.frequency.exponentialRampToValueAtTime(50, now + 0.6);
-    gain.gain.setValueAtTime(0.18, now);
-    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.65);
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    osc.start(now);
-    osc.stop(now + 0.7);
-  } catch (e) { }
+  if (playBetterAudio('zombie_groan')) return;
+  // Fallback sintetizado desativado para evitar travadas
+  return;
 }
 
 function playZombieDeathSound(isBoss = false) {
   if (!AUDIO_ENABLED) return;
-  try {
-    const ctx = getAudioContext();
-    const now = ctx.currentTime;
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.type = isBoss ? 'sawtooth' : 'triangle';
-    osc.frequency.setValueAtTime(isBoss ? 160 : 120, now);
-    osc.frequency.exponentialRampToValueAtTime(30, now + (isBoss ? 1.2 : 0.45));
-    gain.gain.setValueAtTime(isBoss ? 0.6 : 0.3, now);
-    gain.gain.exponentialRampToValueAtTime(0.01, now + (isBoss ? 1.3 : 0.5));
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    osc.start(now);
-    osc.stop(now + (isBoss ? 1.35 : 0.55));
-  } catch (e) { }
+  if (playBetterAudio('zombie_death')) return;
+  // Fallback sintetizado desativado para evitar travadas
+  return;
 }
 
 function playBossRoarSound() {
   if (!AUDIO_ENABLED) return;
-  try {
-    const ctx = getAudioContext();
-    const now = ctx.currentTime;
-    const osc1 = ctx.createOscillator();
-    const osc2 = ctx.createOscillator();
-    const gain = ctx.createGain();
-
-    osc1.type = 'sawtooth';
-    osc1.frequency.setValueAtTime(90, now);
-    osc1.frequency.linearRampToValueAtTime(140, now + 0.4);
-    osc1.frequency.exponentialRampToValueAtTime(35, now + 0.9);
-
-    osc2.type = 'square';
-    osc2.frequency.setValueAtTime(45, now);
-    osc2.frequency.linearRampToValueAtTime(70, now + 0.4);
-    osc2.frequency.exponentialRampToValueAtTime(20, now + 0.9);
-
-    gain.gain.setValueAtTime(0.5, now);
-    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.95);
-
-    osc1.connect(gain);
-    osc2.connect(gain);
-    gain.connect(ctx.destination);
-
-    osc1.start(now); osc2.start(now);
-    osc1.stop(now + 1.0); osc2.stop(now + 1.0);
-  } catch (e) { }
+  if (playBetterAudio('boss_roar')) return;
+  // Fallback sintetizado desativado para evitar travadas
+  return;
 }
 
 // --- SISTEMA DE ILUMINAÇÃO GERAL E POR AMBIENTE ---
@@ -412,6 +218,13 @@ dirLight.shadow.camera.top = d;
 dirLight.shadow.camera.bottom = -d;
 dirLight.shadow.bias = -0.0004;
 scene.add(dirLight);
+
+// Luzes de Efeito de Combate (Pré-alocadas na cena com intensidade zero para evitar recompilação de shaders)
+const combatFlashLight = new THREE.PointLight(0xfacc15, 0.0, 9.0);
+scene.add(combatFlashLight);
+
+const combatImpactLight = new THREE.PointLight(0xef4444, 0.0, 6.0);
+scene.add(combatImpactLight);
 
 // Dicionário de Ambientes e Iluminação por Sala
 const roomEnvironments = {};
@@ -863,10 +676,6 @@ function createCollectibleKey(def) {
   tooth2.position.set(0.05, -0.35, 0);
   keyGroup.add(tooth2);
 
-  const keyLight = new THREE.PointLight(def.color, 2.5, 4.5);
-  keyLight.position.set(0, 0, 0);
-  keyGroup.add(keyLight);
-
   const haloMat = new THREE.MeshBasicMaterial({ color: def.color, transparent: true, opacity: 0.4, side: THREE.DoubleSide });
   const haloMesh = new THREE.Mesh(new THREE.RingGeometry(0.25, 0.42, 24), haloMat);
   haloMesh.rotation.x = Math.PI / 2;
@@ -1063,10 +872,6 @@ function createCollectibleMedkit(id, x, y, z, roomName) {
   medGroup.add(crossV);
   medGroup.add(crossH);
 
-  // Luz verde/esmeralda pulsante
-  const medLight = new THREE.PointLight(0x10b981, 2.0, 3.5);
-  medGroup.add(medLight);
-
   const haloMat = new THREE.MeshBasicMaterial({ color: 0x10b981, transparent: true, opacity: 0.35, side: THREE.DoubleSide });
   const halo = new THREE.Mesh(new THREE.RingGeometry(0.25, 0.45, 24), haloMat);
   halo.rotation.x = Math.PI / 2;
@@ -1138,9 +943,6 @@ function createCollectibleWeapon(id, name, x, y, z, color, roomName) {
     stock.position.set(-0.3, -0.05, 0); weaponGroup.add(stock);
   }
 
-  const light = new THREE.PointLight(color, 2.5, 4.0);
-  weaponGroup.add(light);
-
   const haloMat = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.35, side: THREE.DoubleSide });
   const halo = new THREE.Mesh(new THREE.RingGeometry(0.3, 0.5, 24), haloMat);
   halo.rotation.x = Math.PI / 2; weaponGroup.add(halo);
@@ -1161,9 +963,6 @@ function createCollectibleAmmoBox(id, type, amount, x, y, z, roomName) {
   const boxMat = new THREE.MeshStandardMaterial({ color, roughness: 0.3, metalness: 0.6, emissive: color, emissiveIntensity: 0.3 });
   const boxMesh = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.2, 0.22), boxMat);
   boxMesh.castShadow = true; boxGroup.add(boxMesh);
-
-  const light = new THREE.PointLight(color, 1.8, 3.0);
-  boxGroup.add(light);
 
   scene.add(boxGroup);
 
@@ -1651,16 +1450,16 @@ function fireActiveWeapon() {
     // Orientação correta do jogador para o tiro
     const shootDir = new THREE.Vector3(Math.sin(playerRotation), 0, Math.cos(playerRotation)).normalize();
 
-    // Muzzle flash de disparo
-    const flashLight = new THREE.PointLight(0xfacc15, 7.0, 9.0);
+    // Muzzle flash de disparo (sem adicionar/remover luzes dinamicamente)
     const flashPos = playerGroup.position.clone().add(new THREE.Vector3(
       shootDir.x * 0.8,
       0.25,
       shootDir.z * 0.8
     ));
-    flashLight.position.copy(flashPos);
-    scene.add(flashLight);
-    setTimeout(() => scene.remove(flashLight), 80);
+    combatFlashLight.position.copy(flashPos);
+    combatFlashLight.color.setHex(0xfacc15);
+    combatFlashLight.intensity = 7.0;
+    setTimeout(() => { combatFlashLight.intensity = 0.0; }, 80);
 
     // Recuo de câmera
     cameraPitch = Math.min(1.15, cameraPitch + 0.05);
@@ -1718,11 +1517,11 @@ function fireActiveWeapon() {
 
     // Processa o acerto
     if (hitEnemy) {
-      // Efeito de impacto de sangue/faísca
-      const bloodLight = new THREE.PointLight(0xef4444, 7.0, 6.0);
-      bloodLight.position.copy(hitPoint || hitEnemy.group.position);
-      scene.add(bloodLight);
-      setTimeout(() => scene.remove(bloodLight), 120);
+      // Efeito de impacto de sangue
+      combatImpactLight.position.copy(hitPoint || hitEnemy.group.position);
+      combatImpactLight.color.setHex(0xef4444);
+      combatImpactLight.intensity = 7.0;
+      setTimeout(() => { combatImpactLight.intensity = 0.0; }, 120);
 
       playZombieHitSound();
 
@@ -1764,10 +1563,10 @@ function fireActiveWeapon() {
       }
     } else if (wallHits.length > 0) {
       // Faísca na parede
-      const sparkLight = new THREE.PointLight(0xf97316, 4.0, 4.0);
-      sparkLight.position.copy(wallHits[0].point);
-      scene.add(sparkLight);
-      setTimeout(() => scene.remove(sparkLight), 100);
+      combatImpactLight.position.copy(wallHits[0].point);
+      combatImpactLight.color.setHex(0xf97316);
+      combatImpactLight.intensity = 4.0;
+      setTimeout(() => { combatImpactLight.intensity = 0.0; }, 100);
     }
 
     updateWeaponsUI();
@@ -2622,6 +2421,7 @@ initMenuNavigation();
 function startGame() {
   if (isGameStarted) return;
   isGameStarted = true;
+  toggleRoomEnvironmentLight('corridor', false);
 
   orbitControls.autoRotate = false;
   orbitControls.enabled = !isThirdPerson;
@@ -3806,8 +3606,6 @@ function animate() {
     statRoom.textContent = env ? `${env.name} 🏨` : 'Corredor Central 🏨';
   }
   updateHUDLightStat();
-  updateGoalHUD();
-  updateWeaponsUI();
 
   let nearInteractive = null;
 
@@ -4025,6 +3823,8 @@ function handleGamepadMenuNavigation(gp) {
   }
 }
 
+// Acende a luz do corredor para o menu inicial
+toggleRoomEnvironmentLight('corridor', true);
 animate();
 
 window.__HOTEL_3D__ = {
